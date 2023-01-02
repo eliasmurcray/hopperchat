@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "jsx": "react",
+    "jsx": "React",
     "jsxFactory": "React.createElement",
     "esModuleInterop": true,
     "resolveJsonModule": true
