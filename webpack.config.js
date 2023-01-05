@@ -3,12 +3,14 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
-const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
+const TerserPlugin = require("terser-webpack-plugin");
 
 module.exports = {
   mode: "production",
   entry: {
-    "index": "/src/ts/index.tsx",
+    "index": "/src/tsx/index.tsx",
+    "auth": "/src/tsx/auth.tsx",
+    "onboarding": "/src/tsx/onboarding.tsx"
   },
   experiments: {
     topLevelAwait: true
@@ -30,7 +32,7 @@ module.exports = {
     ],
   },
   output: {
-    publicPath: "",
+    publicPath: "./",
     path: path.resolve(__dirname, "dist"),
     filename: "[name].[contenthash].js",
     clean: true
@@ -38,8 +40,11 @@ module.exports = {
   optimization: {
     minimizer: [
       new CssMinimizerPlugin(),
-      new UglifyJsPlugin()
+      new TerserPlugin()
     ]
+  },
+  resolve: {
+    extensions: [".js", ".json", ".ts", ".tsx"],
   },
   plugins: [
     new MiniCssExtractPlugin({
@@ -58,6 +63,18 @@ module.exports = {
       filename: "index.html",
       chunks: ["index"],
       scriptLoading: "module"
-    })
+    }),
+    new HtmlWebpackPlugin({
+      template: "./src/html/auth.html",
+      filename: "auth.html",
+      chunks: ["auth"],
+      scriptLoading: "module"
+    }),
+    new HtmlWebpackPlugin({
+      template: "./src/html/onboarding.html",
+      filename: "onboarding.html",
+      chunks: ["onboarding"],
+      scriptLoading: "module"
+    }),
   ]
 };

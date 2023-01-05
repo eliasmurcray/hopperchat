@@ -1,0 +1,8 @@
+body {
+  background: #121315;
+  color: #efefff;
+  margin: 0;
+  font: 300 16px / 1.75 Söhne,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif,Helvetica Neue,Arial,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;
+  height: 100vh;
+  overflow: hidden;
+}

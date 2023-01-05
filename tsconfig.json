@@ -1,8 +1,11 @@
 {
   "compilerOptions": {
-    "jsx": "React",
+    "jsx": "react",
     "jsxFactory": "React.createElement",
     "esModuleInterop": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "module": "esnext",
+    "target": "esnext",
+    "moduleResolution": "node"
   }
 }
