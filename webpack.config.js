@@ -10,7 +10,8 @@ module.exports = {
   entry: {
     "index": "/src/tsx/index.tsx",
     "auth": "/src/tsx/auth.tsx",
-    "onboarding": "/src/tsx/onboarding.tsx"
+    "onboarding": "/src/tsx/onboarding.tsx",
+    "login": "/src/tsx/login.tsx"
   },
   experiments: {
     topLevelAwait: true
@@ -76,5 +77,11 @@ module.exports = {
       chunks: ["onboarding"],
       scriptLoading: "module"
     }),
+    new HtmlWebpackPlugin({
+      template: "./src/html/login.html",
+      filename: "login.html",
+      chunks: ["login"],
+      scriptLoading: "module"
+    })
   ]
 };

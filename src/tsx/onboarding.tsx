@@ -1,7 +1,7 @@
 import React, { useReducer } from "react";
 import ReactDOM from "react-dom/client";
 import { initializeApp } from "firebase/app";
-import { getAuth, onAuthStateChanged, RecaptchaVerifier, multiFactor, PhoneAuthProvider, reauthenticateWithPhoneNumber, PhoneMultiFactorGenerator } from "firebase/auth";
+import { getAuth, onAuthStateChanged, RecaptchaVerifier, multiFactor, PhoneAuthProvider, PhoneMultiFactorGenerator } from "firebase/auth";
 import { getDatabase, ref, onValue, query, orderByChild, equalTo, set, update } from "firebase/database";
 import { getStorage, uploadBytes, ref as _ref } from "firebase/storage";
 import firebaseConfig from "../firebaseconfig.json";
@@ -27,7 +27,7 @@ const [uid, session] = await new Promise<Array<any>>((resolve) => {
   onAuthStateChanged(auth, (user) => {
     if(user === null) {
       const root = ReactDOM.createRoot(document.body);
-      root.render(<LoginApp auth={auth} onSuccess={resolve}/>);
+      root.render(<LoginApp auth={auth} className="" onSuccess={resolve}/>);
       return;
     }
     multiFactor(user)
@@ -258,7 +258,7 @@ class PhoneNumberForm extends React.Component<{ onSuccess: () => void, onError: 
 class SMSCodeForm extends React.Component<{ onSuccess: () => void, onError: () => void }> {
   private smsRef: React.RefObject<HTMLInputElement>;
 
-  constructor(props) {
+  constructor(props: { onSuccess: () => void; onError: () => void; } | Readonly<{ onSuccess: () => void; onError: () => void; }>) {
     super(props);
     this.handleInput = this.handleInput.bind(this);
     this.handleSubmit = this.handleSubmit.bind(this);
@@ -288,7 +288,7 @@ class SMSCodeForm extends React.Component<{ onSuccess: () => void, onError: () =
     return <form action="#" autoComplete="off" onSubmit={this.handleSubmit}>
       <div className="input-container">
         <input ref={this.smsRef} id="code" name="code" autoComplete="off" maxLength={6} placeholder=" " onInput={this.handleInput} required />
-        <label htmlFor="display-name">SMS Code</label>
+        <label htmlFor="code">SMS Code</label>
       </div>
       <button type="submit">Link Phone To Account</button>
     </form>;
@@ -302,7 +302,7 @@ class App extends React.Component {
   }
 
   state = {
-    currentStep: 0,
+    currentStep: 1,
     elements: [
       <div className="step-container">
         <h1>Two Factor Authentication</h1>
@@ -311,7 +311,9 @@ class App extends React.Component {
           onUse={() => this.updateStep(1)}
           onSkip={() => this.updateStep(4)}/>
       </div>,
-      <LoginApp auth={auth} onSuccess={() => this.updateStep(2)}/>,
+      <div className="step-container">
+        <LoginApp auth={auth} onSuccess={() => this.updateStep(2)}/>
+      </div>,
       <div className="step-container">
         <h2>Verify Your Phone Number</h2>
         <div className="small">Enter Your Phone Number</div>
@@ -340,7 +342,7 @@ class App extends React.Component {
     const initialStep = this.state.currentStep;
     this.setState({
       elements: (this.state.elements.map((element, i) => 
-    i === initialStep ? React.cloneElement(element, {
+    i === initialStep ? (console.log(element, i), React.cloneElement(element, {
     className: "step-container fade-out",
     onAnimationEnd() {
       component.setState({
@@ -348,7 +350,7 @@ class App extends React.Component {
         elements: (component.state.elements.map((element) => React.cloneElement(element, { className: "step-container", onAnimationEnd(){} })))
       });
     }
-    }) : element))});
+    })) : element))});
   }
 
   render() {

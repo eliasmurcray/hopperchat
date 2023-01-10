@@ -4,9 +4,6 @@ import firebaseConfig from "../firebaseconfig.json";
 import { initializeApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import "../css/index.css";
-import Filter from 'bad-words';
-
-const filter = new Filter();
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -43,6 +40,7 @@ class EmailPasswordForm extends React.Component<{ onSuccess: () => void }> {
     event.preventDefault();
     const email = this.emailRef.current.value;
     const password = this.passwordRef.current.value;
+    window["email"] = email;
 
     signupWithEmail(email, password)
     .then(() => {
