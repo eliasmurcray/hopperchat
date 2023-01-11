@@ -63,7 +63,7 @@ function createAccount(profilePicture: File) {
         ekey_n: epublic_key.n,
         skey_x: spublic_key.x,
         skey_y: spublic_key.y,
-        role: "basic"
+        role: "member"
       })
       .then(resolve)
       .catch(reject);
@@ -302,7 +302,7 @@ class App extends React.Component {
   }
 
   state = {
-    currentStep: 1,
+    currentStep: 0,
     elements: [
       <div className="step-container">
         <h1>Two Factor Authentication</h1>

@@ -193,7 +193,7 @@ class LoginApp extends React.Component<{ auth: Auth, onSuccess: any, className?:
         })
         .catch(console.error);
       } else {
-        console.error("Mulitfactor option is not supported");
+        this.setState({ errors: { email: "Mulitfactor option is not supported" }});
       }
     } else {
       this.setState({ errors: { email: error.code }});
