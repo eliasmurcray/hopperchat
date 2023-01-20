@@ -63,7 +63,8 @@ function createAccount(profilePicture: File) {
         ekey_n: epublic_key.n,
         skey_x: spublic_key.x,
         skey_y: spublic_key.y,
-        role: "member"
+        role: "member",
+        date_joined: Date.now()
       })
       .then(resolve)
       .catch(reject);
@@ -82,6 +83,11 @@ function createAccount(profilePicture: File) {
         ekey_q: eprivate_key.q,
         ekey_qi: eprivate_key.qi
       })
+      .then(() => new Promise((resolve) => {
+        set(ref(database, "user_count/" + uid), true)
+          .then(resolve)
+          .catch(resolve);
+      }))
       .then(resolve)
       .catch(reject);
     }))
@@ -191,7 +197,7 @@ class PhoneNumberForm extends React.Component<{ onSuccess: () => void, onError: 
   private recaptchaVerifier: RecaptchaVerifier;
   private canUseRecaptcha: boolean;
 
-  constructor(props) {
+  constructor(props: { onSuccess: () => void; onError: () => void; } | Readonly<{ onSuccess: () => void; onError: () => void; }>) {
     super(props);
     this.handleSubmit = this.handleSubmit.bind(this);
     this.componentDidMount = this.componentDidMount.bind(this);
@@ -358,10 +364,8 @@ class App extends React.Component {
   }
 }
 
-if(uid && session) {
-  const root = ReactDOM.createRoot(document.body);
-  root.render(<App/>);
-}
+const root = ReactDOM.createRoot(document.body);
+root.render(<App/>);
 
 function createEncryptionKeyPair() {
   return window.crypto.subtle.generateKey({

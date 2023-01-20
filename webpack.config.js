@@ -3,6 +3,7 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
 const TerserPlugin = require("terser-webpack-plugin");
+const CopyWebpackPlugin = require("copy-webpack-plugin");
 
 module.exports = {
   mode: "production",
@@ -10,7 +11,9 @@ module.exports = {
     "index": "/src/tsx/index.tsx",
     "onboarding": "/src/tsx/onboarding.tsx",
     "login": "/src/tsx/login.tsx",
-    "chats": "/src/tsx/chats.tsx"
+    "chats": "/src/tsx/chats.tsx",
+    "chat": "/src/tsx/chat.tsx",
+    "verify-email": "/src/tsx/verify-email.tsx"
   },
   experiments: {
     topLevelAwait: true
@@ -73,6 +76,31 @@ module.exports = {
       filename: "chats.html",
       chunks: ["chats"],
       scriptLoading: "module"
+    }),
+    new HtmlWebpackPlugin({
+      template: "./src/html/chat.html",
+      filename: "chat.html",
+      chunks: ["chat"],
+      scriptLoading: "module",
+      publicPath: "../"
+    }),
+    new HtmlWebpackPlugin({
+      template: "./src/html/verify-email.html",
+      filename: "verify-email.html",
+      chunks: ["verify-email"],
+      scriptLoading: "module"
+    }),
+    new CopyWebpackPlugin({
+      patterns: [
+        {
+          from: "./src/favicons",
+          to: ""
+        },
+        {
+          from: "./src/images",
+          to: ""
+        }
+      ]
     })
   ]
 };
