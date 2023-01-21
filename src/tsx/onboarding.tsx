@@ -92,7 +92,7 @@ function createAccount(profilePicture: File) {
       .catch(reject);
     }))
     .then(() => {
-      window.open("/", "_self");
+      window.open("/chats", "_self");
     })
     .catch((error) => {
       console.error(error?.code ?? error);

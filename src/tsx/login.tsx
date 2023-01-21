@@ -14,7 +14,7 @@ const auth = getAuth(app);
 class App extends React.Component {
 
   onSuccess() {
-    window.open("/", "_self");
+    window.open("/chats", "_self");
   }
 
   render() {

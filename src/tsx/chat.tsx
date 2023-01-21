@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { getDatabase, limitToLast, onValue, orderByChild, push, query, ref, set } from "firebase/database";
+import { getDatabase, limitToLast, onValue, orderByChild, push, query, ref, set, update } from "firebase/database";
 import React, { Component, createRef, MouseEvent, TouchEvent } from "react";
 import ReactDOM from "react-dom/client";
 import firebaseConfig from "../firebaseconfig.json";
@@ -47,6 +47,8 @@ function getAuthorData(uid: string): Promise<User> {
   return new Promise((resolve) => {
     // If the data already exists, return it
     if(cache_author_data[uid] !== undefined) return resolve(cache_author_data[uid]);
+
+    console.log("Loading in author data.");
 
     // Or else load it from db
     onValue(ref(database, "public_users/" + uid),
@@ -135,7 +137,6 @@ class App extends Component {
       lastKey = messages[keys[0]].created - 1;
       for await (const key of keys) {
         const message = messages[key];
-        console.log(message);
         const author = await getAuthorData(message.author);
         const useHeader = (message.created - lastMillis) < 1000 * 60 * 15;
         component.setState({
@@ -159,13 +160,18 @@ class App extends Component {
     event.preventDefault();
   }
 
-  postMessage(message: string) {
+  async postMessage(message: string) {
+    if(message.length === 0) return;
     const { key } = push(ref(database, "messages/" + chatKey));
     set(ref(database, `messages/${chatKey}/${key}`), {
       content: message,
       author: this.state.uid,
       created: Date.now(),
       is_edited: false
+    });
+    update(ref(database, `chats_browse/${chatKey}/members/${this.state.uid}`), {
+      should_notify: true,
+      role: (await getAuthorData(this.state.uid)).role
     });
   }
 
@@ -199,9 +205,7 @@ class App extends Component {
         {this.state.chatName && <h1>{this.state.chatName}</h1>}
       </header>
       <div className="messages-group">
-        <div id="messages-overflow-container" style={{
-          flex: "1"
-        }}>
+        <div className="messages-overflow-container">
           <div id="loading-container">
             <div className="loading-spinner"><div className="loading-icon"></div></div>
           </div>
@@ -209,17 +213,9 @@ class App extends Component {
             {this.state.messages}
           </ul>
         </div>
-        <form style={{
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          padding: "0 15px 15px 15px",
-          boxSizing: "border-box"
-        }}
+        <form noValidate className="message-form"
         onSubmit={this.handleSubmit}>
-          <div className="input-container" style={{
-            marginTop: 0
-          }}>
+          <div className="input-container">
             <textarea ref={this.messageTextareaRef}
               spellCheck="false"
               placeholder=" "
@@ -232,6 +228,7 @@ class App extends Component {
                 parent.style.height = `${textarea.scrollHeight}px`;
               }}
               onKeyDown={this.trackKeys}
+              title=""
               required></textarea>
             <label htmlFor="message-input">Enter message</label>
           </div>

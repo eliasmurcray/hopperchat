@@ -88,7 +88,8 @@ class ChatElement extends Component<ChatDisplay> {
     this.handleClick = this.handleClick.bind(this);
   }
 
-  deleteChat() {
+  deleteChat(event: MouseEvent | TouchEvent) {
+    event.stopPropagation();
     if(confirm("Are you sure you want to delete chat " + this.props.chatName + "?")) {
       set(ref(database, "chats_browse/" + this.props.chatKey), null)
       .then(() => set(ref(database, "chats_view/" + this.props.chatKey), null));
@@ -126,7 +127,7 @@ class ChatElement extends Component<ChatDisplay> {
         fontSize: "14px"
       }}>
         <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 1024 1024" fill="#efefff"><path d="M512 597.994667q108.010667 0 225.002667 46.997333t116.992 123.008l0 85.994667-684.010667 0 0-85.994667q0-76.010667 116.992-123.008t225.002667-46.997333zM512 512q-69.994667 0-120-50.005333t-50.005333-120 50.005333-121.002667 120-51.008 120 51.008 50.005333 121.002667-50.005333 120-120 50.005333z"/></svg>
-        {this.props.numUsers + (this.props.numUsers === 1 ? " Member" : "Members")}
+        {this.props.numUsers + (window.innerWidth >= 720 ? (this.props.numUsers === 1 ? " Member" : " Members") : "")}
         {this.props.chatAuthorId === uid &&
         <button className="circle-button" onClick={this.deleteChat}>
           <svg xmlns="http://www.w3.org/2000/svg" height="24" width="24" viewBox="0 0 48 48"><path d="M13.05 42q-1.25 0-2.125-.875T10.05 39V10.5H8v-3h9.4V6h13.2v1.5H40v3h-2.05V39q0 1.2-.9 2.1-.9.9-2.1.9Zm21.9-31.5h-21.9V39h21.9Zm-16.6 24.2h3V14.75h-3Zm8.3 0h3V14.75h-3Zm-13.6-24.2V39Z"/></svg>
@@ -348,7 +349,7 @@ class App extends Component {
   }
 
   render() {
-    return <div>
+    return <div className="app">
       <div className="top-bar">
         <div className="user-count">
           {this.state.userCount} Users
@@ -400,7 +401,11 @@ class App extends Component {
             </button>
         </div>
       </header>
-      <div className="chats-container" ref={this.chatsContainerRef}>{this.state.chats}</div>
+      <div className="chats-overflow-container">
+        <div className="chats-container" ref={this.chatsContainerRef}>
+          {this.state.chats}
+        </div>
+      </div>
       <div className="modal" ref={this.createChatModalRef}>
         <h3>Create Your Chat</h3>
         <div className="small">The world is your oyster</div>
