@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { getDatabase, limitToLast, onValue, orderByChild, push, query, ref, set, update } from "firebase/database";
+import { endAt, getDatabase, limitToFirst, limitToLast, onChildAdded, onValue, orderByChild, orderByKey, push, query, ref, set, startAt, update } from "firebase/database";
 import React, { Component, createRef, MouseEvent, TouchEvent } from "react";
 import ReactDOM from "react-dom/client";
 import firebaseConfig from "../firebaseconfig.json";
@@ -48,8 +48,6 @@ function getAuthorData(uid: string): Promise<User> {
     // If the data already exists, return it
     if(cache_author_data[uid] !== undefined) return resolve(cache_author_data[uid]);
 
-    console.log("Loading in author data.");
-
     // Or else load it from db
     onValue(ref(database, "public_users/" + uid),
     (snapshot) => {
@@ -61,22 +59,41 @@ function getAuthorData(uid: string): Promise<User> {
   });
 }
 
-class MessageElement extends Component<{ messageData: Message; authorData: User; messageKey: string; useHeader: boolean }> {
+class MessageElement extends Component<{ messageData: Message; authorData: User; messageKey: string; useHeader: boolean; }> {
 
   constructor(props: { messageData: Message; authorData: User; messageKey: string; useHeader: boolean; } | Readonly<{ messageData: Message; authorData: User; messageKey: string; useHeader: boolean; }>) {
     super(props);
   }
 
   render() {
-    return <li>
-      <div>
-        <img src={"https://storage.googleapis.com/hopperchat-cloud.appspot.com/profile_pictures/"+this.props.messageData.author} />
-        <h3>{this.props.authorData.display_name}</h3>
+    return <li className="message"
+      style={{
+        order: ~~((new Date(this.props.messageData.created).valueOf() - new Date("January 1 2023").valueOf()) / 10000)
+      }}>
+      <div className="message-pocket">
+        {this.props.useHeader ? <img className="message-avatar"
+          src={"https://storage.googleapis.com/hopperchat-cloud.appspot.com/profile_pictures/" + this.props.messageData.author}
+          alt={this.props.authorData.display_name+"'s avatar"} /> : <span className="message-time">{new Date(this.props.messageData.created).toLocaleTimeString("default", { timeStyle: "short" })}</span>}
       </div>
-      <div>{this.props.messageData.content}</div>
+      <div className="message-text">
+        {this.props.useHeader && <header className="message-metadata">
+          <span>{this.props.authorData.display_name}</span>
+          <span>{new Date(this.props.messageData.created).toLocaleString()}</span>
+        </header>}
+        <p className="message-content">
+          {this.props.messageData.content}
+        </p>
+      </div>
     </li>
   }
 }
+
+type AppState = {
+  userCount: number;
+  chatName: string;
+  uid: string;
+  messages: []
+};
 
 class App extends Component {
 
@@ -88,7 +105,10 @@ class App extends Component {
     this.initChat = this.initChat.bind(this);
   }
 
-  state = {
+  loadingContainerRef = createRef<HTMLDivElement>();
+  scrollingContainerRef = createRef<HTMLDivElement>();
+
+  state: AppState = {
     userCount: null,
     chatName: "",
     uid: null,
@@ -124,59 +144,113 @@ class App extends Component {
   }
 
   initChat() {
-    const messageLoadAmount = ~~(window.innerHeight * 2 / 32);
+    // const messageLoadAmount = ~~(window.innerHeight * 2 / 32);
+    const messageLoadAmount = 10;
 
-    let lastKey: number, lastAuthor: string, lastMillis = 0;
+    let lastKey: string, lastAuthor: string, lastMillis = 0;
     onValue(query(ref(database, "messages/" + chatKey), orderByChild("created"), limitToLast(messageLoadAmount)),
     async (snapshot) => {
-      if(!snapshot.exists()) return;
+      if(!snapshot.exists()) {
+        this.loadingContainerRef.current.remove();
+        return;
+      }
       const messages = snapshot.val();
       const keys = Object.keys(messages);
       keys.sort((a, b) => messages[a].created - messages[b].created);
-      lastKey = messages[keys[0]].created - 1;
+      lastKey = keys[0];
+      lastMillis = messages[keys[keys.length - 1]].created + 1;
       for await (const key of keys) {
         const message = messages[key];
         const author = await getAuthorData(message.author);
-        const useHeader = (message.created - lastMillis) < 1000 * 60 * 15;
+        const useHeader = (message.created - lastMillis) > 1000 * 60 * 15 || author.display_name !== lastAuthor;
 
-        const component = this;
-        this.setState({
+        this.setState((appState: AppState)  => ({
           messages: [
-            ...component.state.messages,
+            appState.messages,
             <MessageElement
               messageData={message}
               messageKey={key}
               authorData={author}
               useHeader={useHeader} />
           ]
-        });
+        }));
 
-        lastMillis = messages[key].created;
         lastAuthor = author.display_name;
-
-        console.log(this.state.messages);
+        this.scrollingContainerRef.current.scrollTop = this.scrollingContainerRef.current.scrollHeight;
       }
+      if(keys.length <= messageLoadAmount) {
+        this.loadingContainerRef.current.remove();
+      }
+
+      onChildAdded(query(ref(database, "messages/" + chatKey), orderByChild("created"), startAt(lastMillis)),
+      async (snapshot) => {
+        lastKey = snapshot.key;
+        const message = snapshot.val();
+        const author = await getAuthorData(message.author);
+        const useHeader = author.display_name !== lastAuthor;
+        this.setState((appState: AppState)  => ({
+          messages: [
+            appState.messages,
+            <MessageElement
+              messageData={message}
+              messageKey={snapshot.key}
+              authorData={author}
+              useHeader={useHeader} />
+          ]
+        }));
+
+        lastAuthor = author.display_name;
+        this.scrollingContainerRef.current.scrollTop = this.scrollingContainerRef.current.scrollHeight;
+      });
     }, {
       onlyOnce: true
-    })
+    });
+
+    /**onChildAdded(query(ref(database, 'test_chat'), orderByChild('date_created'), limitToLast(1)),
+    async (snapshot) => {
+      const message = snapshot.val();
+      if(!message) return;
+      const author = author_data[message.wkoa] ?? await GetUserInfo(message.wkoa);
+      if(!author) return;
+      const new_message = await PushClientMessage(snapshot.key, message, author, 'beforeend', last_username !== author.display_name);
+      last_username = author.display_name;
+      if(!new_message) return;
+      const next_message = new_message.previousElementSibling;
+      if(next_message) {
+        if(next_message && (author.display_name !== JSON.parse(next_message.dataset.author).display_name || JSON.parse(next_message.dataset.data).date_created - message.date_created > 1000 * 60) && next_message.dataset.headerless === 'false') {
+          const { key, data, author } = next_message.dataset;
+          next_message.dataset.headerless = false;
+          const new_message = await MessageElement(key, JSON.parse(data), JSON.parse(author), true);
+          next_message.insertAdjacentElement('afterend', new_message);
+          next_message.remove();
+        }
+      }
+      if(messages_overflow_container.scrollHeight - messages_overflow_container.scrollTop < window.innerHeight) {
+        messages_overflow_container.style.scrollBehavior = 'smooth';
+        messages_overflow_container.scrollTop = messages_overflow_container.scrollHeight;
+      }
+    }); */
   }
 
   handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
   }
 
-  async postMessage(message: string) {
+  postMessage(message: string) {
     if(message.length === 0) return;
+
     const { key } = push(ref(database, "messages/" + chatKey));
+
     set(ref(database, `messages/${chatKey}/${key}`), {
       content: message,
       author: this.state.uid,
       created: Date.now(),
       is_edited: false
-    });
-    update(ref(database, `chats_browse/${chatKey}/members/${this.state.uid}`), {
-      should_notify: true,
-      role: (await getAuthorData(this.state.uid)).role
+    }).then(async () => {
+      update(ref(database, `chats_browse/${chatKey}/members/${this.state.uid}`), {
+        should_notify: true,
+        role: (await getAuthorData(this.state.uid)).role
+      });
     });
   }
 
@@ -199,7 +273,7 @@ class App extends Component {
         </div>
         <svg width="40" height="10" fill="#19d263"><path d="M5 0L10 10L 0 10M30 0L40 0L40 10L30 10M 20 5m -5 0a 5 5 0 1 0 10 0a 5 5 0 1 0 -10 0"></path></svg>
       </div>
-      <header>
+      <header className="chat-header">
         <button className="circle-button"
           onClick={(e: MouseEvent | TouchEvent)=>ripple(e as MouseEvent & TouchEvent)}
           onAnimationEnd={()=>{
@@ -210,11 +284,11 @@ class App extends Component {
         {this.state.chatName && <h1>{this.state.chatName}</h1>}
       </header>
       <div className="messages-group">
-        <div className="messages-overflow-container">
-          <div id="loading-container">
+        <div className="messages-overflow-container" ref={this.scrollingContainerRef}>
+          <div ref={this.loadingContainerRef}>
             <div className="loading-spinner"><div className="loading-icon"></div></div>
           </div>
-          <ul id="messages-container">
+          <ul className="messages-container">
             {this.state.messages}
           </ul>
         </div>
