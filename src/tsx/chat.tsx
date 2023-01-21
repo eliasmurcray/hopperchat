@@ -124,7 +124,6 @@ class App extends Component {
   }
 
   initChat() {
-    const component = this;
     const messageLoadAmount = ~~(window.innerHeight * 2 / 32);
 
     let lastKey: number, lastAuthor: string, lastMillis = 0;
@@ -139,17 +138,23 @@ class App extends Component {
         const message = messages[key];
         const author = await getAuthorData(message.author);
         const useHeader = (message.created - lastMillis) < 1000 * 60 * 15;
-        component.setState({
-          messages: [...component.state.messages,
+
+        const component = this;
+        this.setState({
+          messages: [
+            ...component.state.messages,
             <MessageElement
               messageData={message}
               messageKey={key}
               authorData={author}
-              useHeader={useHeader} />]
+              useHeader={useHeader} />
+          ]
         });
 
         lastMillis = messages[key].created;
         lastAuthor = author.display_name;
+
+        console.log(this.state.messages);
       }
     }, {
       onlyOnce: true
