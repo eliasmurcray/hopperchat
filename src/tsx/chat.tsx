@@ -1,10 +1,13 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { endAt, getDatabase, limitToFirst, limitToLast, onChildAdded, onValue, orderByChild, orderByKey, push, query, ref, set, startAt, update } from "firebase/database";
+import { getDatabase, limitToLast, onChildAdded, onValue, orderByChild, push, query, ref, set, startAt, update } from "firebase/database";
 import React, { Component, createRef, MouseEvent, TouchEvent } from "react";
 import ReactDOM from "react-dom/client";
 import firebaseConfig from "../firebaseconfig.json";
 import "../css/chat.css";
+
+// Prevent long-polling infinite loop
+localStorage.setItem("firebase:previous_websocket_failure", "false");
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -59,6 +62,42 @@ function getAuthorData(uid: string): Promise<User> {
   });
 }
 
+const fileNames = [
+  "bobert",
+  "high-bobert",
+  "hacker-bobert",
+  "troll-bobert",
+  "wide-bobert",
+  "flexing-bobert",
+  "hopperchat-logo"
+];
+
+const tags = ['<b>$</b>', '<i>$</i>', '<u>$</u>', '<i>$</i>', '<div class="block-code">$</div>', '<span class="inline-code">$</span>', '<a href="$" target="_blank">$</a>', '<div class="mention">$</div>', '<s>$</s>', '<a href="/user/$" target="_blank">$</a>'];
+
+const escape = {'&': '&amp;', '<': '&lt;', '>': '&gt;'};
+function parse (txt: string) {
+    return txt.replace(/[&<>]/g, (t) => escape[t] || '')
+      .replace(
+    /\*{2}([^\n]+?)\*{2}|\*([^\n]+?)\*|_{2}([^\n]+?)_{2}|_([^\n]+?)_|`{3}([\s\S]+)`{3}|`([^\n]+?)`|((?:http|ftp|https):\/\/[\w-]+\.[a-z]+\S+)|<((?:@|#).+?)>|~~([^\n]+?)~~|&lt;((?:@).+?)&gt;/g,
+    (m, ...args) => {
+        for (var i in args) {
+          if (args[i]) {
+            if (i !== "6" && i !== "4" && i !== "9") {
+              return tags[i].replace(/\$/g, parse(args[i]));
+          }
+            return tags[i].replace(/\$/g, args[i]);
+        }
+      }
+      return m;
+    }
+   )
+   .replace(/:[\w-]+:/g, (match: string) => {
+    match = match.replace(/:/g, "");
+    if(!fileNames.includes(match)) return `:${match}:`;
+    return `<div class="emoji-container"><img src="../${match}.png"></div>`
+   })
+}
+
 class MessageElement extends Component<{ messageData: Message; authorData: User; messageKey: string; useHeader: boolean; }> {
 
   constructor(props: { messageData: Message; authorData: User; messageKey: string; useHeader: boolean; } | Readonly<{ messageData: Message; authorData: User; messageKey: string; useHeader: boolean; }>) {
@@ -80,9 +119,8 @@ class MessageElement extends Component<{ messageData: Message; authorData: User;
           <span>{this.props.authorData.display_name}</span>
           <span>{new Date(this.props.messageData.created).toLocaleString()}</span>
         </header>}
-        <p className="message-content">
-          {this.props.messageData.content}
-        </p>
+        <p className="message-content" dangerouslySetInnerHTML={{ __html: parse(this.props.messageData.content)
+          + (this.props.messageData.is_edited ? <span>{"(edited)"}</span> : "") }} />
       </div>
     </li>
   }
@@ -144,50 +182,51 @@ class App extends Component {
   }
 
   initChat() {
-    // const messageLoadAmount = ~~(window.innerHeight * 2 / 32);
-    const messageLoadAmount = 10;
+    const messageLoadAmount = ~~(window.innerHeight * 2 / 32);
 
-    let lastKey: string, lastAuthor: string, lastMillis = 0;
+    let lastAuthor: string, lastMillis = 0;
     onValue(query(ref(database, "messages/" + chatKey), orderByChild("created"), limitToLast(messageLoadAmount)),
     async (snapshot) => {
-      if(!snapshot.exists()) {
-        this.loadingContainerRef.current.remove();
-        return;
-      }
-      const messages = snapshot.val();
-      const keys = Object.keys(messages);
-      keys.sort((a, b) => messages[a].created - messages[b].created);
-      lastKey = keys[0];
-      lastMillis = messages[keys[keys.length - 1]].created + 1;
-      for await (const key of keys) {
-        const message = messages[key];
-        const author = await getAuthorData(message.author);
-        const useHeader = (message.created - lastMillis) > 1000 * 60 * 15 || author.display_name !== lastAuthor;
+      if(snapshot.exists()) {
+        const messages = snapshot.val();
+        const keys = Object.keys(messages);
+        keys.sort((a, b) => messages[a].created - messages[b].created);
+        for await (const key of keys) {
+          const message = messages[key];
+          const author = await getAuthorData(message.author);
+          const useHeader = (message.created - lastMillis) > 1000 * 60 * 15 || author.display_name !== lastAuthor;
 
-        this.setState((appState: AppState)  => ({
-          messages: [
-            appState.messages,
-            <MessageElement
-              messageData={message}
-              messageKey={key}
-              authorData={author}
-              useHeader={useHeader} />
-          ]
-        }));
+          this.setState((appState: AppState)  => ({
+            messages: [
+              appState.messages,
+              <MessageElement
+                messageData={message}
+                messageKey={key}
+                authorData={author}
+                useHeader={useHeader} />
+            ]
+          }), () => {
+            this.scrollingContainerRef.current.scrollTop = this.scrollingContainerRef.current.scrollHeight;
+          });
 
-        lastAuthor = author.display_name;
-        this.scrollingContainerRef.current.scrollTop = this.scrollingContainerRef.current.scrollHeight;
-      }
-      if(keys.length <= messageLoadAmount) {
+          lastAuthor = author.display_name;
+          lastMillis = message.created;
+        }
+
+        lastMillis ++;
+
+        if(keys.length <= messageLoadAmount) {
+          this.loadingContainerRef.current.remove();
+        }
+      } else {
         this.loadingContainerRef.current.remove();
       }
 
       onChildAdded(query(ref(database, "messages/" + chatKey), orderByChild("created"), startAt(lastMillis)),
       async (snapshot) => {
-        lastKey = snapshot.key;
-        const message = snapshot.val();
+        const message = snapshot.val() as Message;
         const author = await getAuthorData(message.author);
-        const useHeader = author.display_name !== lastAuthor;
+        const useHeader = author.display_name !== lastAuthor || (message.created - lastMillis) > 1000 * 60 * 15;
         this.setState((appState: AppState)  => ({
           messages: [
             appState.messages,
@@ -197,46 +236,31 @@ class App extends Component {
               authorData={author}
               useHeader={useHeader} />
           ]
-        }));
+        }), () => {
+          this.scrollingContainerRef.current.scrollTop = this.scrollingContainerRef.current.scrollHeight;
+        });
 
         lastAuthor = author.display_name;
-        this.scrollingContainerRef.current.scrollTop = this.scrollingContainerRef.current.scrollHeight;
+        lastMillis = message.created;
       });
     }, {
       onlyOnce: true
     });
-
-    /**onChildAdded(query(ref(database, 'test_chat'), orderByChild('date_created'), limitToLast(1)),
-    async (snapshot) => {
-      const message = snapshot.val();
-      if(!message) return;
-      const author = author_data[message.wkoa] ?? await GetUserInfo(message.wkoa);
-      if(!author) return;
-      const new_message = await PushClientMessage(snapshot.key, message, author, 'beforeend', last_username !== author.display_name);
-      last_username = author.display_name;
-      if(!new_message) return;
-      const next_message = new_message.previousElementSibling;
-      if(next_message) {
-        if(next_message && (author.display_name !== JSON.parse(next_message.dataset.author).display_name || JSON.parse(next_message.dataset.data).date_created - message.date_created > 1000 * 60) && next_message.dataset.headerless === 'false') {
-          const { key, data, author } = next_message.dataset;
-          next_message.dataset.headerless = false;
-          const new_message = await MessageElement(key, JSON.parse(data), JSON.parse(author), true);
-          next_message.insertAdjacentElement('afterend', new_message);
-          next_message.remove();
-        }
-      }
-      if(messages_overflow_container.scrollHeight - messages_overflow_container.scrollTop < window.innerHeight) {
-        messages_overflow_container.style.scrollBehavior = 'smooth';
-        messages_overflow_container.scrollTop = messages_overflow_container.scrollHeight;
-      }
-    }); */
   }
 
   handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const textarea = this.messageTextareaRef.current;
+    this.postMessage(textarea.value);
+    textarea.value = "";
+    const parent = textarea.parentElement;
+    textarea.style.height = "";
+    parent.style.height = "";
+    parent.style.height = `${textarea.scrollHeight}px`;
   }
 
   postMessage(message: string) {
+    message = message.trim();
     if(message.length === 0) return;
 
     const { key } = push(ref(database, "messages/" + chatKey));
@@ -246,11 +270,14 @@ class App extends Component {
       author: this.state.uid,
       created: Date.now(),
       is_edited: false
-    }).then(async () => {
-      update(ref(database, `chats_browse/${chatKey}/members/${this.state.uid}`), {
-        should_notify: true,
-        role: (await getAuthorData(this.state.uid)).role
-      });
+    }).then(async () => 
+    update(ref(database, `chats_browse/${chatKey}/members/${this.state.uid}`), {
+      should_notify: true,
+      role: (await getAuthorData(this.state.uid)).role
+    }))
+    .catch((error) => {
+      console.error(error);
+      console.log(message);
     });
   }
 
@@ -261,7 +288,10 @@ class App extends Component {
       event.preventDefault();
       this.postMessage(textarea.value);
       textarea.value = "";
-      textarea.style.height = "48px";
+      const parent = textarea.parentElement;
+      textarea.style.height = "";
+      parent.style.height = "";
+      parent.style.height = `${textarea.scrollHeight}px`;
     }
   }
 

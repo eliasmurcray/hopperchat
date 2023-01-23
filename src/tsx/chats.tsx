@@ -46,6 +46,8 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const database = getDatabase(app);
 
+localStorage.setItem("firebase:previous_websocket_failure", "false");
+
 const uid = await new Promise((resolve) => {
   onAuthStateChanged(auth, (user) => {
     if(user === null) return;

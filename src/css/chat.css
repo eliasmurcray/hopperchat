@@ -10,6 +10,40 @@ body {
   max-height: -webkit-fill-available;
   overflow: hidden;
 }
+a {
+  text-decoration-color: #0000;
+  color: #16aff7;
+  transition: text-decoration-color .1s ease-in-out;
+}
+a:hover {
+  text-decoration-color: #16aff7;
+}
+.inline-code {
+  font: 400 12px / 1.75 ui-monospace,"Cascadia Mono","Segoe UI Mono","Liberation Mono",Menlo,Monaco,Consolas,monospace;
+  padding: 2px;
+  color: #f6f6f6;
+  background: #2f3337; 
+}
+.block-code {
+  padding: 10px;
+  font: 400 12px / 1.75 ui-monospace,"Cascadia Mono","Segoe UI Mono","Liberation Mono",Menlo,Monaco,Consolas,monospace;
+  color: #f6f6f6;
+  background: #2f3337; 
+}
+::-webkit-scrollbar {
+  background: #202123;
+  width: 14px;
+  transition: .1s ease-in-out;
+}
+::-webkit-scrollbar-thumb {
+  border: 4px solid #202123;
+  background: #44474a;
+  width: 5px;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:active {
+  background: #5a5e62;
+}
 .app {
   display: flex;
   flex-flow: column;
@@ -28,7 +62,7 @@ h1 {
   align-items: center;
   justify-content: flex-start;
   column-gap: 12px;
-  padding-inline: 15px;
+  padding: 0 15px 15px 15px;
 }
 .circle-button {
   position: relative;
@@ -148,18 +182,6 @@ h1 {
   font-size: 14px;
   transform: translateY(50%);
 }
-.input-container:not(.error) input:valid + label,
-.input-container:not(.error) textarea:valid + label {
-  top: -2px;
-  left: 5px;
-  font-size: 14px;
-  transform: translateY(50%);
-  color: #1fe07e;
-}
-.input-container.error input:not(:focus) + label,
-.input-container .error textarea:not(:focus) + label {
-  color: #c6333a;
-}
 .input-container textarea {
   resize: none;
   overflow: auto;
@@ -172,8 +194,9 @@ h1 {
   box-shadow: none;
   width: 44px;
   height: 44px;
-  padding: 0;
-  border-radius: 50%;
+  box-sizing: border-box;
+  padding: none;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -224,9 +247,10 @@ h1 {
 .message {
   position: relative;
   display: flex;
-  transition: background .1s ease-in-out;
+  transition: background-color .1s ease-in-out;
   padding-right: 10px;
   font-weight: 400;
+  background-color: #202123;
 }
 @keyframes fade-in {
   0% {
@@ -238,14 +262,12 @@ h1 {
 }
 .message:hover,
 .message:active {
-  background: #212225;
+  background: #2a2b32;
 }
 .message-metadata {
   font-size: 12px;
   line-height: 1.5;
   padding-top: 10px;
-  -webkit-user-select: none;
-  user-select: none;
 }
 .message-metadata :first-child {
   font-weight: 600;
@@ -287,5 +309,13 @@ h1 {
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
-  padding-block: 2px;
+}
+.emoji-container {
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+}
+.emoji-container img {
+  display: block;
+  height: 18px;
 }
