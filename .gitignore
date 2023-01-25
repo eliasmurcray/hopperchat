@@ -28,3 +28,4 @@ node_modules/
 .yarn-integrity
 .env
 src/firebaseconfig.json
+.DS_Store
