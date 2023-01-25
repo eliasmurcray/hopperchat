@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { getDatabase, limitToLast, onChildAdded, onValue, orderByChild, push, query, ref, set, startAt, update } from "firebase/database";
+import { endAt, getDatabase, limitToLast, onChildAdded, onChildRemoved, onValue, orderByChild, push, query, ref, set, startAt, update } from "firebase/database";
 import React, { Component, createRef, MouseEvent, TouchEvent } from "react";
 import ReactDOM from "react-dom/client";
 import firebaseConfig from "../firebaseconfig.json";
@@ -45,6 +45,7 @@ type User = {
 const chatKey = window.location.href.split("/chat/")[1];
 const userKeys: { [key:string]: boolean } = {};
 const cache_author_data = {};
+let uid: string = "";
 
 function getAuthorData(uid: string): Promise<User> {
   return new Promise((resolve) => {
@@ -69,13 +70,23 @@ const fileNames = [
   "troll-bobert",
   "wide-bobert",
   "flexing-bobert",
-  "hopperchat-logo"
+  "hopperchat-logo",
+  "smile",
+  "thumbs-up",
+  "skull",
+  "joy",
+  "thinking",
+  "partying-face",
+  "thinking-eyes",
+  "thinking-smart",
+  "heart"
 ];
 
 const tags = ['<b>$</b>', '<i>$</i>', '<u>$</u>', '<i>$</i>', '<div class="block-code">$</div>', '<span class="inline-code">$</span>', '<a href="$" target="_blank">$</a>', '<div class="mention">$</div>', '<s>$</s>', '<a href="/user/$" target="_blank">$</a>'];
 
 const escape = {'&': '&amp;', '<': '&lt;', '>': '&gt;'};
 function parse (txt: string) {
+    let hasOtherText = /^(:[\w-]+:)+$/g.test(txt);
     return txt.replace(/[&<>]/g, (t) => escape[t] || '')
       .replace(
     /\*{2}([^\n]+?)\*{2}|\*([^\n]+?)\*|_{2}([^\n]+?)_{2}|_([^\n]+?)_|`{3}([\s\S]+)`{3}|`([^\n]+?)`|((?:http|ftp|https):\/\/[\w-]+\.[a-z]+\S+)|<((?:@|#).+?)>|~~([^\n]+?)~~|&lt;((?:@).+?)&gt;/g,
@@ -93,9 +104,11 @@ function parse (txt: string) {
    )
    .replace(/:[\w-]+:/g, (match: string) => {
     match = match.replace(/:/g, "");
-    if(!fileNames.includes(match)) return `:${match}:`;
-    return `<div class="emoji-container"><img src="../${match}.png"></div>`
+    if(!fileNames.includes(match)) return (hasOtherText = true) && `:${match}:`;
+    return `<div class="emoji-container ${hasOtherText ? "large" : ""}"><img src="../${match}.webp" alt=":${match}:" width="auto" height="${hasOtherText ? "36" : "18"}"></div>`
    })
+   .replace(/(^|[^\\]):\)/g, `<div class="emoji-container"><img src="../smile.webp" width="auto" height=${hasOtherText ? "36" : "18"}></div>`)
+   .replace(/\\:\)/g, ":)");
 }
 
 class MessageElement extends Component<{ messageData: Message; authorData: User; messageKey: string; useHeader: boolean; }> {
@@ -116,11 +129,17 @@ class MessageElement extends Component<{ messageData: Message; authorData: User;
       </div>
       <div className="message-text">
         {this.props.useHeader && <header className="message-metadata">
-          <span>{this.props.authorData.display_name}</span>
+          <span>{this.props.authorData.display_name + " "}</span>
           <span>{new Date(this.props.messageData.created).toLocaleString()}</span>
         </header>}
         <p className="message-content" dangerouslySetInnerHTML={{ __html: parse(this.props.messageData.content)
           + (this.props.messageData.is_edited ? <span>{"(edited)"}</span> : "") }} />
+      </div>
+      <div className="message-tools">
+        {uid === this.props.messageData.author && <button className="delete-message" onClick={() => {
+          if(confirm("Delete message?"))
+            set(ref(database, `messages/${chatKey}/${this.props.messageKey}`), null);
+        }}></button>}
       </div>
     </li>
   }
@@ -173,6 +192,7 @@ class App extends Component {
         component.setState({
           uid: user.uid
         });
+        uid = user.uid;
         resolve(0);
       });
     })
@@ -184,68 +204,139 @@ class App extends Component {
   initChat() {
     const messageLoadAmount = ~~(window.innerHeight * 2 / 32);
 
-    let lastAuthor: string, lastMillis = 0;
+    let lastAuthor: string, lastMillis = 0, scrollMillis: number;
     onValue(query(ref(database, "messages/" + chatKey), orderByChild("created"), limitToLast(messageLoadAmount)),
     async (snapshot) => {
       if(snapshot.exists()) {
         const messages = snapshot.val();
         const keys = Object.keys(messages);
         keys.sort((a, b) => messages[a].created - messages[b].created);
+        scrollMillis = messages[keys[0]].created - 1;
+        const loadedMessages = [];
         for await (const key of keys) {
           const message = messages[key];
           const author = await getAuthorData(message.author);
           const useHeader = (message.created - lastMillis) > 1000 * 60 * 15 || author.display_name !== lastAuthor;
-
-          this.setState((appState: AppState)  => ({
-            messages: [
-              appState.messages,
-              <MessageElement
-                messageData={message}
-                messageKey={key}
-                authorData={author}
-                useHeader={useHeader} />
-            ]
-          }), () => {
-            this.scrollingContainerRef.current.scrollTop = this.scrollingContainerRef.current.scrollHeight;
-          });
-
+          loadedMessages.push(<MessageElement
+            key={key}
+            messageData={message}
+            messageKey={key}
+            authorData={author}
+            useHeader={useHeader} />);
           lastAuthor = author.display_name;
           lastMillis = message.created;
         }
 
+        this.setState({
+          messages: loadedMessages
+        }, () => {
+          const container = this.scrollingContainerRef.current;
+          this.scrollingContainerRef.current.scrollTop = this.scrollingContainerRef.current.scrollHeight;
+          function callback() {
+            if(container.scrollHeight - container.scrollTop - container.clientHeight < window.innerHeight) {
+              container.removeEventListener("scroll", callback);
+              container.addEventListener("scroll", loadOnScroll, { passive: true });
+              container.addEventListener("touchmove", loadOnScroll, { passive: true });
+            }
+          }
+          this.scrollingContainerRef.current.addEventListener("scroll", callback);
+        });
+
         lastMillis ++;
 
-        if(keys.length <= messageLoadAmount) {
+        if(keys.length < messageLoadAmount) {
           this.loadingContainerRef.current.remove();
         }
       } else {
         this.loadingContainerRef.current.remove();
       }
 
-      onChildAdded(query(ref(database, "messages/" + chatKey), orderByChild("created"), startAt(lastMillis)),
-      async (snapshot) => {
-        const message = snapshot.val() as Message;
-        const author = await getAuthorData(message.author);
-        const useHeader = author.display_name !== lastAuthor || (message.created - lastMillis) > 1000 * 60 * 15;
-        this.setState((appState: AppState)  => ({
-          messages: [
-            appState.messages,
-            <MessageElement
-              messageData={message}
-              messageKey={snapshot.key}
-              authorData={author}
-              useHeader={useHeader} />
-          ]
-        }), () => {
-          this.scrollingContainerRef.current.scrollTop = this.scrollingContainerRef.current.scrollHeight;
-        });
 
-        lastAuthor = author.display_name;
-        lastMillis = message.created;
+    onChildAdded(query(ref(database, "messages/" + chatKey), orderByChild("created"), startAt(lastMillis)),
+    async (snapshot) => {
+      const message = snapshot.val() as Message;
+      const author = await getAuthorData(message.author);
+      const useHeader = author.display_name !== lastAuthor || (message.created - lastMillis) > 1000 * 60 * 15;
+      this.setState((appState: AppState)  => ({
+        messages: [
+          ...appState.messages,
+          <MessageElement
+            key={snapshot.key}
+            messageData={message}
+            messageKey={snapshot.key}
+            authorData={author}
+            useHeader={useHeader} />
+        ]
+      }), () => {
+        const scrollContainer = this.scrollingContainerRef.current;
+        if(scrollContainer.scrollTop > scrollContainer.scrollHeight - 300)
+          scrollContainer.scrollTop = scrollContainer.scrollHeight;
       });
+
+      lastAuthor = author.display_name;
+      lastMillis = message.created;
+    });
     }, {
       onlyOnce: true
     });
+
+    onChildRemoved(ref(database, "messages/" + chatKey), (snapshot) => {
+      this.setState((appState: AppState) => {
+        const newState = appState.messages.filter((message: any) => message.key !== snapshot.key);
+        return { messages: newState };
+      });
+    });
+
+    const loadOnScroll = () => {
+      const scrollingContainer = this.scrollingContainerRef.current as HTMLDivElement;
+      if(scrollingContainer.scrollTop >= window.innerHeight) return;
+      const offset = scrollingContainer.scrollHeight - scrollingContainer.scrollTop - scrollingContainer.clientHeight;
+      scrollingContainer.removeEventListener("scroll", loadOnScroll);
+      scrollingContainer.removeEventListener("touchmove", loadOnScroll);
+      const scrollQuery = query(ref(database, "messages/" + chatKey), orderByChild("created"), endAt(scrollMillis), limitToLast(messageLoadAmount));
+      console.time("Messages load");
+      onValue(scrollQuery,
+      async (snapshot) => {
+        const messages = snapshot.val();
+        if(!messages) return this.loadingContainerRef.current.remove();
+
+        let miniMillis = 0, miniAuthor = "";
+
+        const keys = Object.keys(messages);
+        keys.sort((a, b) => messages[a].created - messages[b].created);
+        scrollMillis = messages[keys[0]].created - 1;
+        const loadedMessages = [];
+        for await (const key of keys) {
+          const message = messages[key];
+          const author = await getAuthorData(message.author);
+          const useHeader = (message.created - miniMillis) > 1000 * 60 * 15 || author.display_name !== miniAuthor;
+          loadedMessages.push(<MessageElement
+            key={key}
+            messageData={message}
+            messageKey={key}
+            authorData={author}
+            useHeader={useHeader} />);
+          miniAuthor = author.display_name;
+          miniMillis = message.created;
+        }
+
+        this.setState((appState: AppState) => ({
+          messages: [
+            ...loadedMessages,
+            appState.messages
+          ]
+        }), () => {
+          console.timeEnd("Messages load");
+          scrollingContainer.style.scrollBehavior = "auto";
+          scrollingContainer.scrollTop = scrollingContainer.scrollHeight - scrollingContainer.clientHeight - offset;
+          scrollingContainer.style.scrollBehavior = "smooth";
+          scrollingContainer.addEventListener("scroll", loadOnScroll, { passive: true });
+          scrollingContainer.addEventListener("touchmove", loadOnScroll, { passive: true });
+        });
+      }, {
+        onlyOnce: true
+      });
+    };
   }
 
   handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -305,6 +396,7 @@ class App extends Component {
       </div>
       <header className="chat-header">
         <button className="circle-button"
+          aria-label="Return To Chats"
           onClick={(e: MouseEvent | TouchEvent)=>ripple(e as MouseEvent & TouchEvent)}
           onAnimationEnd={()=>{
             window.open("/chats", "_self");
@@ -338,6 +430,7 @@ class App extends Component {
               }}
               onKeyDown={this.trackKeys}
               title=""
+              id="message-input"
               required></textarea>
             <label htmlFor="message-input">Enter message</label>
           </div>

@@ -41,7 +41,7 @@ const [uid, session] = await new Promise<Array<any>>((resolve) => {
 
 function createAccount(profilePicture: File) {
   const imagePath = _ref(storage, "profile_pictures/" + uid);
-  uploadBytes(imagePath, profilePicture)
+  uploadBytes(imagePath, profilePicture, { cacheControl: "public, max-age=31536000" })
   .then(async () => {
     // Generate assymetric key pairs
     const ekeys = await createEncryptionKeyPair();
@@ -196,7 +196,7 @@ class PhoneNumberForm extends React.Component<{ onSuccess: () => void, onError: 
   private submitRef: React.RefObject<HTMLButtonElement>;
   private recaptchaVerifier: RecaptchaVerifier;
   private canUseRecaptcha: boolean;
-
+  
   constructor(props: { onSuccess: () => void; onError: () => void; } | Readonly<{ onSuccess: () => void; onError: () => void; }>) {
     super(props);
     this.handleSubmit = this.handleSubmit.bind(this);

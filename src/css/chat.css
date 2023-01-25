@@ -228,7 +228,10 @@ h1 {
   height: calc(100% - 79px);
   overflow: hidden auto;
   scroll-behavior: smooth;
+  padding: 22px 0;
+  background-color: #202123;
 }
+
 .message-form {
   width: 100%;
   display: flex;
@@ -272,7 +275,6 @@ h1 {
 .message-metadata :first-child {
   font-weight: 600;
   font-size: 14px;
-  margin-right: 6px;
 }
 .message-avatar {
   width: 35px;
@@ -311,11 +313,52 @@ h1 {
   margin: 0;
 }
 .emoji-container {
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
+  height: 18px;
+  display: inline-block;
+  vertical-align: top;
+}
+.emoji-container.large {
+  height: 38px;
+  padding: 2px 0;
 }
 .emoji-container img {
   display: block;
-  height: 18px;
+  pointer-events: none;
+}
+.emoji-container:not(.large) img {
+  padding: 5px 0;
+}
+.message:hover .message-tools,
+.message:active .message-tools {
+  display: flex;
+  opacity: 1;
+}
+.message-tools {
+  position: absolute;
+  top: -20px;
+  height: 40px;
+  right: 10px;
+  align-items: center;
+  transition: opacity .2s ease-in-out;
+  opacity: 0;
+  display: none;
+  border: 1px solid #232426;
+  border-radius: 5px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.message-tools button {
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  transition: background-color .1s ease-in-out;
+  padding: 5px;
+  border: 0;
+  background-color: #202123;
+}
+.message-tools button:hover {
+  background-color: #2c2d30;
+}
+.delete-message {
+  background: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 height=%2725%27 width=%2725%27 viewBox=%270 0 47 49%27%3E%3Cpath fill%3D%22%23efefff%22 d=%27M13.05 42q-1.25 0-2.125-.875T10.05 39V10.5H8v-3h9.4V6h13.2v1.5H40v3h-2.05V39q0 1.2-.9 2.1-.9.9-2.1.9Zm21.9-31.5h-21.9V39h21.9Zm-16.6 24.2h3V14.75h-3Zm8.3 0h3V14.75h-3Zm-13.6-24.2V39Z%27/%3E%3C/svg%3E") center no-repeat;
 }

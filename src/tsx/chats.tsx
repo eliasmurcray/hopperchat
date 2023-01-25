@@ -118,7 +118,7 @@ class ChatElement extends Component<ChatDisplay> {
           alignItems: "center",
           columnGap: "12px"
         }}>
-          <img className="author-picture" src={"https://storage.googleapis.com/hopperchat-cloud.appspot.com/profile_pictures/"+this.props.chatAuthorId} />
+          <img className="author-picture" src={"https://storage.googleapis.com/hopperchat-cloud.appspot.com/profile_pictures/"+this.props.chatAuthorId} width="30" height="30" />
           <h4>{this.props.authorName}</h4>
         </div>
       </div>
