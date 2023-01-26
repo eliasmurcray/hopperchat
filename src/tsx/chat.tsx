@@ -120,12 +120,6 @@ const patterns = [
     name: "italics"
   },
   {
-    reg: /_([^\n"]+?)_/,
-    hasNestedParsing: true,
-    string: '<i>$</i>',
-    name: "italics"
-  },
-  {
     reg: /~~([^\n]+?)~~/,
     hasNestedParsing: true,
     string: '<s>$</s>',
@@ -137,44 +131,62 @@ const patterns = [
     string: '<a href="/user/$" target="_blank">$</a>',
     name: "mention"
   },
-  {
-    reg: /(?:^|[^"])((?:http|https):\/\/[\w-]+\.[\w\S]+)/,
-    hasNestedParsing: false,
-    string: '<a href="$" target="_blank">$</a>',
-    name: "link"
-  }
+  // {
+  //   reg: /(?:^|[^"])((?:http|https):\/\/[\w-]+\.[\w\S]+)/,
+  //   hasNestedParsing: false,
+  //   string: '<a href="$" target="_blank">$</a>',
+  //   name: "link"
+  // }
 ];
+
+// https://stackoverflow.com/a/72869607/20918291
+async function asyncReplace(str: string, regex: RegExp, asyncFn: (match: string) => Promise<string>): Promise<string> {
+  const promises = (str.match(regex) ?? []).map((match: string) => asyncFn(match));
+  const data = await Promise.all(promises);
+  return str.replace(regex, () => data.shift()!);
+}
 
 const escape = { "&": "&amp;", "<": "&lt;", ">": "&gt;" };
 function initParsing () {
   const regexp = new RegExp(patterns.map((i) => i.reg.source).join("|"), "gm");
-  return function parse (content: string) {
+
+  function syncParse(content: string) {
     return content
-      .replace(/[&<>]/g, (t) => escape[t] || "")
-      .replace(regexp, (match, ...args) => {
+    .replace(/[&<>]/g, (t) => escape[t] || "")
+    .replace(regexp, (match, ...args) => {
         const i = args.findIndex(Boolean);
         const j = patterns[i];
         if(j === undefined) return match;
-        if(j.name === "link") {
-          if(/((?:http|https):\/\/[\w-]+\.[\w\S]+\.(?:gif|jpg|jpeg|tiff|png|webp))/.test(match)) {
-            const domain = new URL(match).hostname;
-            if(whitelistedDomains.includes(domain)) {
-              return `<img src="${match}" alt="${match}" width="100%" style="max-width:200px;max-height:200px;" />`;
-            }
-          }
-        }
         if (j.hasNestedParsing) {
-          return j.string.replace(/\$/g, parse(args[i]));
+          return j.string.replace(/\$/g, syncParse(args[i]));
         }
         return j.string.replace(/\$/g, args[i]);
-      })
-      .replace(/:([\w-]+):/gm, (match: string, p1: string) => {
-        if(!fileNames.includes(p1)) return match;
-        return `<div class="emoji-container"><img src="../${p1}.webp" alt=":${match}:" width="auto" height="18"></div>`;
-      });
+      }).replace(/:([\w-]+):/gm, (match: string, p1: string) => {
+      if(!fileNames.includes(p1)) return match;
+      return `<div class="emoji-container"><img src="../${p1}.webp" alt=":${match}:" width="auto" height="18"></div>`;
+    });
+  }
+
+  async function asyncParse(content: string) {
+    return await asyncReplace(content, /(?:^|[^"])((?:http|https):\/\/[\w-]+\.[\w\S]+)/, async (match) => {
+      if(/((?:http|https):\/\/[\w-]+\.[\w\S]+\.(?:gif|jpg|jpeg|tiff|png|webp))/.test(match)) {
+        const domain = new URL(match).hostname;
+        if(whitelistedDomains.includes(domain)) {
+          const { status } = await fetch(match);
+          if(status === 200) {
+            return `<img src="${match}" alt="${match}" width="100%" style="max-width:200px;max-height:200px;" />`;
+          }
+        }
+      }
+      return `<a href="${match}" target="_blank">${match}</a>`;
+    });
+  }
+
+  return async function parse (content: string) {
+    content = syncParse(content);
+    return await asyncParse(content);
   }
 }
-
 const parse = initParsing();
 
 type MessageType = {
@@ -182,6 +194,7 @@ type MessageType = {
   authorData: User;
   messageKey: string;
   useHeader: boolean;
+  content: string;
   uid: string;
 };
 
@@ -206,7 +219,7 @@ class MessageElement extends Component<MessageType> {
           <span>{this.props.authorData.display_name + " "}</span>
           <span>{new Date(this.props.messageData.created).toLocaleString()}</span>
         </header>}
-        <p className="message-content" dangerouslySetInnerHTML={{ __html: parse(this.props.messageData.content)
+        <p className="message-content" dangerouslySetInnerHTML={{ __html: this.props.content
           + (this.props.messageData.is_edited ? <span>{"(edited)"}</span> : "") }} />
       </div>
       <div className="message-tools">
@@ -295,7 +308,8 @@ class App extends Component {
             messageData={message}
             messageKey={key}
             authorData={author}
-            useHeader={useHeader} 
+            useHeader={useHeader}
+            content={await parse(message.content)} 
             uid={this.state.uid} />);
           lastAuthor = author.display_name;
           lastMillis = message.created;
@@ -334,13 +348,14 @@ class App extends Component {
       const message = snapshot.val() as Message;
       const author = await getAuthorData(message.author);
       const useHeader = author.display_name !== lastAuthor || (message.created - lastMillis) > 1000 * 60 * 15;
-      this.setState((appState: AppState)  => ({
+      this.setState(async (appState: AppState) => ({
         messages: [
           ...appState.messages,
           <MessageElement
             key={snapshot.key}
             messageData={message}
             messageKey={snapshot.key}
+            content={await parse(message.content)}
             authorData={author}
             useHeader={useHeader}
             uid={this.state.uid} />
@@ -349,7 +364,6 @@ class App extends Component {
         const scrollContainer = this.scrollingContainerRef.current;
         const messagesContainer = scrollContainer.getElementsByClassName("messages-container")[0];
         if(scrollContainer.scrollTop > scrollContainer.scrollHeight - 300)
-          // scrollContainer.scrollTop = scrollContainer.scrollHeight;
           messagesContainer.lastElementChild.scrollIntoView({
             behavior: "smooth",
             block: "end"
@@ -396,6 +410,7 @@ class App extends Component {
             key={key}
             messageData={message}
             messageKey={key}
+            content={await parse(message.content)}
             authorData={author}
             useHeader={useHeader}
             uid={this.state.uid} />);
@@ -411,9 +426,7 @@ class App extends Component {
         }), () => {
           console.timeEnd("Messages load");
           scrollingContainer.style.scrollBehavior = "auto";
-          console.log(scrollingContainer.scrollHeight - scrollingContainer.clientHeight - offset);
           scrollingContainer.scrollTop = scrollingContainer.scrollHeight - scrollingContainer.clientHeight - offset;
-          console.log(scrollingContainer.scrollTop);
           scrollingContainer.style.scrollBehavior = "smooth";
           scrollingContainer.addEventListener("scroll", loadOnScroll, { passive: true });
         });
