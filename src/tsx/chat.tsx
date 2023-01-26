@@ -147,6 +147,7 @@ async function asyncReplace(str: string, regex: RegExp, asyncFn: (match: string)
 }
 
 const escape = { "&": "&amp;", "<": "&lt;", ">": "&gt;" };
+const cached_fetches = {};
 function initParsing () {
   const regexp = new RegExp(patterns.map((i) => i.reg.source).join("|"), "gm");
 
@@ -172,7 +173,8 @@ function initParsing () {
       if(/((?:http|https):\/\/[\w-]+\.[\w\S]+\.(?:gif|jpg|jpeg|tiff|png|webp))/.test(match)) {
         const domain = new URL(match).hostname;
         if(whitelistedDomains.includes(domain)) {
-          const { status } = await fetch(match);
+          const status = cached_fetches[match] ?? (await fetch(match)).status;
+          cached_fetches[match] = status;
           if(status === 200) {
             return `<img src="${match}" alt="${match}" width="100%" style="max-width:200px;max-height:200px;" />`;
           }
@@ -345,17 +347,21 @@ class App extends Component {
 
     onChildAdded(query(ref(database, "messages/" + chatKey), orderByChild("created"), startAt(lastMillis)),
     async (snapshot) => {
+      console.log("message loaded!");
       const message = snapshot.val() as Message;
       const author = await getAuthorData(message.author);
+      console.log("author data gotten")
       const useHeader = author.display_name !== lastAuthor || (message.created - lastMillis) > 1000 * 60 * 15;
-      this.setState(async (appState: AppState) => ({
+      const content = await parse(message.content);
+      console.log("message parsed")
+      this.setState((appState: AppState) => ({
         messages: [
           ...appState.messages,
           <MessageElement
             key={snapshot.key}
             messageData={message}
             messageKey={snapshot.key}
-            content={await parse(message.content)}
+            content={content}
             authorData={author}
             useHeader={useHeader}
             uid={this.state.uid} />
@@ -371,7 +377,7 @@ class App extends Component {
       });
 
       lastAuthor = author.display_name;
-      lastMillis = message.created;
+      lastMillis = message.created + 1;
     });
     }, {
       onlyOnce: true

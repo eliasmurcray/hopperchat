@@ -230,6 +230,8 @@ h1 {
   scroll-behavior: smooth;
   padding: 22px 0;
   background-color: #202123;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }
 
 .message-form {

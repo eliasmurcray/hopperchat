@@ -235,21 +235,25 @@ class App extends Component {
         }
 
         const keys = Object.keys(value);
+        const loadedChats = [];
         for (const key of keys) {
           const chatInfo = value[key];
           const authorInfo = await getAuthorInfo(chatInfo.author);
-          component.setState({
-            chats: [ ...component.state.chats,
-              <ChatElement
+          loadedChats.push(<ChatElement
             chatName={chatInfo.name}
             authorName={authorInfo["display_name"]}
             description={chatInfo.description}
             chatKey={key}
             chatAuthorId={chatInfo.author}
             numUsers={Object.keys(chatInfo.members).length}
-            uid={this.state.uid} /> ]
-          });
+            uid={this.state.uid} />);
         }
+        component.setState({
+          chats: [
+          ...component.state.chats,
+          ... loadedChats
+          ]
+        });
       });
     }
     if (this.chatsContainerRef.current && !this.state.allLoaded) {
