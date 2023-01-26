@@ -45,7 +45,6 @@ type User = {
 const chatKey = window.location.href.split("/chat/")[1];
 const userKeys: { [key:string]: boolean } = {};
 const cache_author_data = {};
-let uid: string = "";
 
 function getAuthorData(uid: string): Promise<User> {
   return new Promise((resolve) => {
@@ -62,6 +61,11 @@ function getAuthorData(uid: string): Promise<User> {
     { onlyOnce: true });
   });
 }
+
+var ua = window.navigator.userAgent;
+var iOS = !!ua.match(/iPad/i) || !!ua.match(/iPhone/i);
+var webkit = !!ua.match(/WebKit/i);
+var iOSSafari = iOS && webkit && !ua.match(/CriOS/i);
 
 const fileNames = [
   "bobert",
@@ -82,38 +86,101 @@ const fileNames = [
   "heart"
 ];
 
-const tags = ['<b>$</b>', '<i>$</i>', '<u>$</u>', '<i>$</i>', '<div class="block-code">$</div>', '<span class="inline-code">$</span>', '<a href="$" target="_blank">$</a>', '<div class="mention">$</div>', '<s>$</s>', '<a href="/user/$" target="_blank">$</a>'];
+const whitelistedDomains = [
+  "upload.wikimedia.org"
+];
 
-const escape = {'&': '&amp;', '<': '&lt;', '>': '&gt;'};
-function parse (txt: string) {
-    let hasOtherText = /^(:[\w-]+:)+$/g.test(txt);
-    return txt.replace(/[&<>]/g, (t) => escape[t] || '')
-      .replace(
-    /\*{2}([^\n]+?)\*{2}|\*([^\n]+?)\*|_{2}([^\n]+?)_{2}|_([^\n]+?)_|`{3}([\s\S]+)`{3}|`([^\n]+?)`|((?:http|ftp|https):\/\/[\w-]+\.[a-z]+\S+)|<((?:@|#).+?)>|~~([^\n]+?)~~|&lt;((?:@).+?)&gt;/g,
-    (m, ...args) => {
-        for (var i in args) {
-          if (args[i]) {
-            if (i !== "6" && i !== "4" && i !== "9") {
-              return tags[i].replace(/\$/g, parse(args[i]));
-          }
-            return tags[i].replace(/\$/g, args[i]);
+const patterns = [
+  {
+    reg: /`{3}(.+?)`{3}/,
+    hasNestedParsing: false,
+    string: '<div class="block-code">$</div>'
+  },
+  {
+    reg: /`([^\n]+?)`/,
+    hasNestedParsing: false,
+    string: '<span class="inline-code">$</span>'
+  },
+  {
+    reg: /\*{2}(.+?)\*{2}/,
+    hasNestedParsing: true,
+    string: '<b>$</b>'
+  },
+  {
+    reg: /\_\_(.+?)\_\_/,
+    hasNestedParsing: true,
+    string: '<u>$</u>'
+  },
+  {
+    reg: /\*([^\n]+?)\*/,
+    hasNestedParsing: true,
+    string: '<i>$</i>'
+  },
+  {
+    reg: /_([^\n"]+?)_/,
+    hasNestedParsing: true,
+    string: '<i>$</i>'
+  },
+  {
+    reg: /~~([^\n]+?)~~/,
+    hasNestedParsing: true,
+    string: '<s>$</s>'
+  },
+  {
+    reg: /&lt;((?:@).+?)&gt;/,
+    hasNestedParsing: false,
+    string: '<a href="/user/$" target="_blank">$</a>'
+  },
+  {
+    reg: /(?:^|[^"])((?:http|https):\/\/[\w-]+\.[\w\S]+)/,
+    hasNestedParsing: false,
+    string: '<a href="$" target="_blank">$</a>'
+  }
+];
+
+const escape = { "&": "&amp;", "<": "&lt;", ">": "&gt;" };
+
+function initParsing () {
+  const regexp = new RegExp(patterns.map((i) => i.reg.source).join("|"), "gm");
+  return function parse (content: string) {
+    return content
+      .replace(/[&<>]/g, (t) => escape[t] || "")
+      .replace(/((?:http|https):\/\/[\w-]+\.[\w\S]+\.(?:gif|jpg|jpeg|tiff|png|webp))/, (match) => {
+        const domain = new URL(match).hostname;
+        if(whitelistedDomains.includes(domain)) {
+          return `<img src="${match}" alt="${match}" width="100%" style="max-width:200px;max-height:200px;" />`;
+        } else
+          return match;
+      })
+      .replace(regexp, (m, ...args) => {
+        const i = args.findIndex(Boolean);
+        const j = patterns[i];
+        if(j === undefined) return m;
+        if (j.hasNestedParsing) {
+          return j.string.replace(/\$/g, parse(args[i]));
         }
-      }
-      return m;
-    }
-   )
-   .replace(/:[\w-]+:/g, (match: string) => {
-    match = match.replace(/:/g, "");
-    if(!fileNames.includes(match)) return (hasOtherText = true) && `:${match}:`;
-    return `<div class="emoji-container ${hasOtherText ? "large" : ""}"><img src="../${match}.webp" alt=":${match}:" width="auto" height="${hasOtherText ? "36" : "18"}"></div>`
-   })
-   .replace(/(^|[^\\]):\)/g, `<div class="emoji-container"><img src="../smile.webp" width="auto" height=${hasOtherText ? "36" : "18"}></div>`)
-   .replace(/\\:\)/g, ":)");
+        return j.string.replace(/\$/g, args[i]);
+      })
+      .replace(/:([\w-]+):/gm, (match: string, p1: string) => {
+        if(!fileNames.includes(p1)) return match;
+        return `<div class="emoji-container"><img src="../${p1}.webp" alt=":${match}:" width="auto" height="18"></div>`;
+      });
+  }
 }
 
-class MessageElement extends Component<{ messageData: Message; authorData: User; messageKey: string; useHeader: boolean; }> {
+const parse = initParsing();
 
-  constructor(props: { messageData: Message; authorData: User; messageKey: string; useHeader: boolean; } | Readonly<{ messageData: Message; authorData: User; messageKey: string; useHeader: boolean; }>) {
+type MessageType = {
+  messageData: Message;
+  authorData: User;
+  messageKey: string;
+  useHeader: boolean;
+  uid: string;
+};
+
+class MessageElement extends Component<MessageType> {
+
+  constructor(props: MessageType | Readonly<MessageType>) {
     super(props);
   }
 
@@ -136,7 +203,7 @@ class MessageElement extends Component<{ messageData: Message; authorData: User;
           + (this.props.messageData.is_edited ? <span>{"(edited)"}</span> : "") }} />
       </div>
       <div className="message-tools">
-        {uid === this.props.messageData.author && <button className="delete-message" onClick={() => {
+        {this.props.uid === this.props.messageData.author && <button className="delete-message" onClick={() => {
           if(confirm("Delete message?"))
             set(ref(database, `messages/${chatKey}/${this.props.messageKey}`), null);
         }}></button>}
@@ -149,7 +216,7 @@ type AppState = {
   userCount: number;
   chatName: string;
   uid: string;
-  messages: []
+  messages: [];
 };
 
 class App extends Component {
@@ -168,7 +235,7 @@ class App extends Component {
   state: AppState = {
     userCount: null,
     chatName: "",
-    uid: null,
+    uid: undefined,
     messages: []
   }
 
@@ -190,9 +257,8 @@ class App extends Component {
     new Promise((resolve) => {
       onAuthStateChanged(auth, (user) => {
         component.setState({
-          uid: user.uid
+          uid: user?.uid
         });
-        uid = user.uid;
         resolve(0);
       });
     })
@@ -222,7 +288,8 @@ class App extends Component {
             messageData={message}
             messageKey={key}
             authorData={author}
-            useHeader={useHeader} />);
+            useHeader={useHeader} 
+            uid={this.state.uid} />);
           lastAuthor = author.display_name;
           lastMillis = message.created;
         }
@@ -231,12 +298,15 @@ class App extends Component {
           messages: loadedMessages
         }, () => {
           const container = this.scrollingContainerRef.current;
-          this.scrollingContainerRef.current.scrollTop = this.scrollingContainerRef.current.scrollHeight;
+          const messagesContainer = container.getElementsByClassName("messages-container")[0];
+          messagesContainer.lastElementChild.scrollIntoView({
+            behavior: "smooth",
+            block: "end"
+          });
           function callback() {
             if(container.scrollHeight - container.scrollTop - container.clientHeight < window.innerHeight) {
               container.removeEventListener("scroll", callback);
               container.addEventListener("scroll", loadOnScroll, { passive: true });
-              container.addEventListener("touchmove", loadOnScroll, { passive: true });
             }
           }
           this.scrollingContainerRef.current.addEventListener("scroll", callback);
@@ -265,12 +335,18 @@ class App extends Component {
             messageData={message}
             messageKey={snapshot.key}
             authorData={author}
-            useHeader={useHeader} />
+            useHeader={useHeader}
+            uid={this.state.uid} />
         ]
       }), () => {
         const scrollContainer = this.scrollingContainerRef.current;
+        const messagesContainer = scrollContainer.getElementsByClassName("messages-container")[0];
         if(scrollContainer.scrollTop > scrollContainer.scrollHeight - 300)
-          scrollContainer.scrollTop = scrollContainer.scrollHeight;
+          // scrollContainer.scrollTop = scrollContainer.scrollHeight;
+          messagesContainer.lastElementChild.scrollIntoView({
+            behavior: "smooth",
+            block: "end"
+          });
       });
 
       lastAuthor = author.display_name;
@@ -289,10 +365,9 @@ class App extends Component {
 
     const loadOnScroll = () => {
       const scrollingContainer = this.scrollingContainerRef.current as HTMLDivElement;
-      if(scrollingContainer.scrollTop >= window.innerHeight) return;
+      if(scrollingContainer.scrollTop >= window.innerHeight || (iOSSafari && scrollingContainer.scrollTop !== 0)) return;
       const offset = scrollingContainer.scrollHeight - scrollingContainer.scrollTop - scrollingContainer.clientHeight;
       scrollingContainer.removeEventListener("scroll", loadOnScroll);
-      scrollingContainer.removeEventListener("touchmove", loadOnScroll);
       const scrollQuery = query(ref(database, "messages/" + chatKey), orderByChild("created"), endAt(scrollMillis), limitToLast(messageLoadAmount));
       console.time("Messages load");
       onValue(scrollQuery,
@@ -315,7 +390,8 @@ class App extends Component {
             messageData={message}
             messageKey={key}
             authorData={author}
-            useHeader={useHeader} />);
+            useHeader={useHeader}
+            uid={this.state.uid} />);
           miniAuthor = author.display_name;
           miniMillis = message.created;
         }
@@ -328,10 +404,11 @@ class App extends Component {
         }), () => {
           console.timeEnd("Messages load");
           scrollingContainer.style.scrollBehavior = "auto";
+          console.log(scrollingContainer.scrollHeight - scrollingContainer.clientHeight - offset);
           scrollingContainer.scrollTop = scrollingContainer.scrollHeight - scrollingContainer.clientHeight - offset;
+          console.log(scrollingContainer.scrollTop);
           scrollingContainer.style.scrollBehavior = "smooth";
           scrollingContainer.addEventListener("scroll", loadOnScroll, { passive: true });
-          scrollingContainer.addEventListener("touchmove", loadOnScroll, { passive: true });
         });
       }, {
         onlyOnce: true
@@ -341,6 +418,7 @@ class App extends Component {
 
   handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if(this.state.uid === undefined) return;
     const textarea = this.messageTextareaRef.current;
     this.postMessage(textarea.value);
     textarea.value = "";
@@ -373,6 +451,7 @@ class App extends Component {
   }
 
   trackKeys(event: any) {
+    if(this.state.uid === undefined) return;
     const textarea = event.target as HTMLTextAreaElement;
     userKeys[event.key] = event.type === "keydown";
     if(userKeys.Enter && !userKeys.Shift) {
@@ -418,6 +497,7 @@ class App extends Component {
         onSubmit={this.handleSubmit}>
           <div className="input-container">
             <textarea ref={this.messageTextareaRef}
+              disabled={this.state.uid === undefined}
               spellCheck="false"
               placeholder=" "
               onKeyUp={this.trackKeys}

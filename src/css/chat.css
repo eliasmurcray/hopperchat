@@ -254,6 +254,8 @@ h1 {
   padding-right: 10px;
   font-weight: 400;
   background-color: #202123;
+  transform: none;
+  -webkit-transform: translate3d(0, 0, 0);
 }
 @keyframes fade-in {
   0% {

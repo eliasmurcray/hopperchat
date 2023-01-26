@@ -48,29 +48,18 @@ const database = getDatabase(app);
 
 localStorage.setItem("firebase:previous_websocket_failure", "false");
 
-const uid = await new Promise((resolve) => {
-  onAuthStateChanged(auth, (user) => {
-    if(user === null) return;
-    resolve(user.uid);
-  });
-}) as string;
-
-const myInfo = await new Promise((resolve) => {
-  onValue(ref(database, "public_users/" + uid),
-  (snapshot) => {
-    if(!snapshot.exists()) return resolve(null);
-    resolve(snapshot.val());
-  }, { onlyOnce: true })
-}) as User;
-
-function retrieveAuthorInfo(authorID: string) {
+const cache_author_data = {};
+function getAuthorInfo(uid: string): Promise<User> {
   return new Promise((resolve, reject) => {
-    onValue(ref(database, "public_users/" + authorID),
+    if(cache_author_data[uid] !== undefined) return resolve(cache_author_data[uid]);
+    onValue(ref(database, "public_users/" + uid),
     (snapshot) => {
-      if(!snapshot.exists()) return reject("User does not exist");
+      if(!snapshot.exists()) return reject("User does not exist.");
+      cache_author_data[uid] = snapshot.val();
       resolve(snapshot.val());
-    },
-    { onlyOnce: true});
+    }, {
+      onlyOnce: true
+    });
   });
 }
 
@@ -81,6 +70,7 @@ type ChatDisplay = {
   chatKey: string;
   chatAuthorId: string;
   numUsers: number;
+  uid: string;
 }
 
 class ChatElement extends Component<ChatDisplay> {
@@ -99,10 +89,12 @@ class ChatElement extends Component<ChatDisplay> {
   }
 
   handleClick(event: MouseEvent | TouchEvent) {
-    ripple(event as MouseEvent & TouchEvent);
-    setTimeout(() => {
+    const element = event.target as HTMLButtonElement;
+    element.onanimationend = () => {
       window.open(`/chat/${this.props.chatKey}`, "_self");
-    }, 500);
+      element.onanimationend = () => {};
+    };
+    ripple(event as MouseEvent & TouchEvent);
   }
 
   render() {
@@ -130,7 +122,7 @@ class ChatElement extends Component<ChatDisplay> {
       }}>
         <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 1024 1024" fill="#efefff"><path d="M512 597.994667q108.010667 0 225.002667 46.997333t116.992 123.008l0 85.994667-684.010667 0 0-85.994667q0-76.010667 116.992-123.008t225.002667-46.997333zM512 512q-69.994667 0-120-50.005333t-50.005333-120 50.005333-121.002667 120-51.008 120 51.008 50.005333 121.002667-50.005333 120-120 50.005333z"/></svg>
         {this.props.numUsers + (window.innerWidth >= 720 ? (this.props.numUsers === 1 ? " Member" : " Members") : "")}
-        {this.props.chatAuthorId === uid &&
+        {this.props.chatAuthorId === this.props.uid &&
         <button className="circle-button" onClick={this.deleteChat}>
           <svg xmlns="http://www.w3.org/2000/svg" height="24" width="24" viewBox="0 0 48 48"><path d="M13.05 42q-1.25 0-2.125-.875T10.05 39V10.5H8v-3h9.4V6h13.2v1.5H40v3h-2.05V39q0 1.2-.9 2.1-.9.9-2.1.9Zm21.9-31.5h-21.9V39h21.9Zm-16.6 24.2h3V14.75h-3Zm8.3 0h3V14.75h-3Zm-13.6-24.2V39Z"/></svg>
         </button>}
@@ -180,7 +172,9 @@ class App extends Component {
   state = {
     chats: [],
     allLoaded: false,
-    userCount: ""
+    userCount: "",
+    uid: null,
+    myInfo: null
   }
 
   async *getChats(): AsyncGenerator<ChatCollection, boolean, ChatCollection> {
@@ -211,6 +205,14 @@ class App extends Component {
   componentDidMount() {
     const component = this;
 
+    onAuthStateChanged(auth, async (user) => {
+      if(user === null) return;
+      this.setState({
+        uid: user.uid,
+        myInfo: await getAuthorInfo(user.uid)
+      });
+    });
+
     // Load user count
     onValue(ref(database, "user_count"),
     (snapshot) => {
@@ -235,23 +237,17 @@ class App extends Component {
         const keys = Object.keys(value);
         for (const key of keys) {
           const chatInfo = value[key];
-          await retrieveAuthorInfo(chatInfo.author)
-          .then((authorInfo) => {
-            component.setState({
-              chats: [
-                ...component.state.chats,
-                <ChatElement
-              chatName={chatInfo.name}
-              authorName={authorInfo["display_name"]}
-              description={chatInfo.description}
-              chatKey={key}
-              chatAuthorId={chatInfo.author}
-              numUsers={Object.keys(chatInfo.members).length} />
-              ]
-            });
-          })
-          .catch((error) => {
-            console.error("Error in getting info: ", error);
+          const authorInfo = await getAuthorInfo(chatInfo.author);
+          component.setState({
+            chats: [ ...component.state.chats,
+              <ChatElement
+            chatName={chatInfo.name}
+            authorName={authorInfo["display_name"]}
+            description={chatInfo.description}
+            chatKey={key}
+            chatAuthorId={chatInfo.author}
+            numUsers={Object.keys(chatInfo.members).length}
+            uid={this.state.uid} /> ]
           });
         }
       });
@@ -305,12 +301,12 @@ class App extends Component {
     const { key } = push(ref(database, "chats_browse"));
     set(ref(database, "chats_browse/" + key), {
       name: chatName,
-      author: uid,
+      author: this.state.uid,
       isPinned: false,
       description: chatDescription || "No description",
       members: {
-        [uid]: {
-          role: myInfo.role,
+        [this.state.uid]: {
+          role: this.state.myInfo.role,
           should_notify: true
         }
       }
@@ -359,28 +355,41 @@ class App extends Component {
         <svg width="40" height="10" fill="#19d263"><path d="M5 0L10 10L 0 10M30 0L40 0L40 10L30 10M 20 5m -5 0a 5 5 0 1 0 10 0a 5 5 0 1 0 -10 0"></path></svg>
       </div>
       <header>
-        <button className="circle-button" onClick={this.openCreateChatModal}>
+        {this.state.uid === null && <button className="circle-button" onClick={(event: TouchEvent | MouseEvent) => {
+          const element = event.target as HTMLButtonElement;
+          element.onanimationend = () => {
+            window.open("/login", "_self");
+            element.onanimationend = () => {};
+          };
+          ripple(event as any);
+        }}>
+          Log In
+          <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px"><g><rect fill="none" height="24" width="24"/></g><g><path d="M11,7L9.6,8.4l2.6,2.6H2v2h10.2l-2.6,2.6L11,17l5-5L11,7z M20,19h-8v2h8c1.1,0,2-0.9,2-2V5c0-1.1-0.9-2-2-2h-8v2h8V19z"/></g></svg>
+        </button>}
+        {this.state.uid !== null && <button className="circle-button" onClick={this.openCreateChatModal}>
           Create Chat 
           <svg xmlns="http://www.w3.org/2000/svg" height="24" width="24" viewBox="0 0 48 48"><path d="m2 46 3.6-12.75q-1-2.15-1.45-4.425-.45-2.275-.45-4.675 0-4.2 1.575-7.85Q6.85 12.65 9.6 9.9q2.75-2.75 6.4-4.325Q19.65 4 23.85 4q4.2 0 7.85 1.575Q35.35 7.15 38.1 9.9q2.75 2.75 4.325 6.4Q44 19.95 44 24.15q0 4.2-1.575 7.85-1.575 3.65-4.325 6.4-2.75 2.75-6.4 4.325-3.65 1.575-7.85 1.575-2.4 0-4.675-.45T14.75 42.4Zm4.55-4.55 6.9-1.9q.8-.25 1.5-.175.7.075 1.45.375 1.8.7 3.675 1.125 1.875.425 3.775.425 7.15 0 12.15-5t5-12.15Q41 17 36 12T23.85 7Q16.7 7 11.7 12t-5 12.15q0 1.95.275 3.85.275 1.9 1.275 3.6.35.7.375 1.45.025.75-.175 1.5Zm15.8-9.25h3v-6.35h6.4v-3h-6.4v-6.4h-3v6.4h-6.4v3h6.4Zm1.45-8Z"/></svg>
-        </button>
+        </button>}
+        {this.state.uid !== null && 
         <button className="circle-button" onClick={this.toggleProfileModal}>
           Profile
-          <img src={"https://storage.googleapis.com/hopperchat-cloud.appspot.com/profile_pictures/" + uid} />
-        </button>
+          <img src={"https://storage.googleapis.com/hopperchat-cloud.appspot.com/profile_pictures/" + this.state.uid} />
+        </button>}
+        { this.state.uid !== null &&
         <div className="profile-modal" ref={this.profileModalRef}>
           <div style={{
             lineHeight: "1.25" }}>
-            <img src={"https://storage.googleapis.com/hopperchat-cloud.appspot.com/profile_pictures/" + uid} />
+            <img src={"https://storage.googleapis.com/hopperchat-cloud.appspot.com/profile_pictures/" + this.state.uid} />
             <div style={{
               marginTop: "5px",
               fontWeight: 600
             }}>
-              {myInfo.display_name} 
+              {this.state.myInfo.display_name} 
             </div>
             <div style={{
               color: "#00BFFF"
               }}>
-              {myInfo.role}
+              {this.state.myInfo.role}
             </div>
             <div style={{
               display: "flex",
@@ -390,7 +399,7 @@ class App extends Component {
               fontSize: "14px"
             }}>
               <img src="./hopperchat-logo.png" width="18" height="18" />
-              {new Date(myInfo.date_joined).toLocaleDateString()}
+              {new Date(this.state.myInfo.date_joined).toLocaleDateString()}
             </div>
             </div>
             <button onClick={this.logout} className="circle-button" style={{
@@ -401,14 +410,14 @@ class App extends Component {
               Log Out
               <svg xmlns="http://www.w3.org/2000/svg" height="24" width="24" viewBox="0 0 48 48"><path d="M9 42q-1.2 0-2.1-.9Q6 40.2 6 39V9q0-1.2.9-2.1Q7.8 6 9 6h14.55v3H9v30h14.55v3Zm24.3-9.25-2.15-2.15 5.1-5.1h-17.5v-3h17.4l-5.1-5.1 2.15-2.15 8.8 8.8Z"/></svg>
             </button>
-        </div>
+        </div>}
       </header>
       <div className="chats-overflow-container">
         <div className="chats-container" ref={this.chatsContainerRef}>
           {this.state.chats}
         </div>
       </div>
-      <div className="modal" ref={this.createChatModalRef}>
+      {this.state.uid !== null && <div className="modal" ref={this.createChatModalRef}>
         <h3>Create Your Chat</h3>
         <div className="small">The world is your oyster</div>
         <CloseModalButton />
@@ -432,7 +441,7 @@ class App extends Component {
           </div>
           <button type="submit">Create Chat</button>
         </form>
-      </div>
+      </div>}
     </div>
   }
 }
