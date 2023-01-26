@@ -281,6 +281,7 @@ class App extends Component {
         component.setState({
           uid: user?.uid
         });
+        set(ref(database, `public_users/${user.uid}/last_active`), Date.now());
         resolve(0);
       });
     })
@@ -319,13 +320,21 @@ class App extends Component {
 
         this.setState({
           messages: loadedMessages
-        }, () => {
+        }, async () => {
           const container = this.scrollingContainerRef.current;
-          const messagesContainer = container.getElementsByClassName("messages-container")[0];
-          messagesContainer.lastElementChild.scrollIntoView({
-            behavior: "smooth",
-            block: "end"
+          const images = container.querySelectorAll("img");
+          const promises = [];
+
+          images.forEach((image) => {
+            !image.complete && promises.push(new Promise((resolve) => {
+              image.onload = resolve;
+            }));
           });
+
+          await Promise.all(promises);
+
+          container.scrollTop = container.scrollHeight;
+
           function callback() {
             if(container.scrollHeight - container.scrollTop - container.clientHeight < window.innerHeight) {
               container.removeEventListener("scroll", callback);
@@ -347,13 +356,10 @@ class App extends Component {
 
     onChildAdded(query(ref(database, "messages/" + chatKey), orderByChild("created"), startAt(lastMillis)),
     async (snapshot) => {
-      console.log("message loaded!");
       const message = snapshot.val() as Message;
       const author = await getAuthorData(message.author);
-      console.log("author data gotten")
       const useHeader = author.display_name !== lastAuthor || (message.created - lastMillis) > 1000 * 60 * 15;
       const content = await parse(message.content);
-      console.log("message parsed")
       this.setState((appState: AppState) => ({
         messages: [
           ...appState.messages,
@@ -366,14 +372,19 @@ class App extends Component {
             useHeader={useHeader}
             uid={this.state.uid} />
         ]
-      }), () => {
-        const scrollContainer = this.scrollingContainerRef.current;
-        const messagesContainer = scrollContainer.getElementsByClassName("messages-container")[0];
-        if(scrollContainer.scrollTop > scrollContainer.scrollHeight - 300)
-          messagesContainer.lastElementChild.scrollIntoView({
-            behavior: "smooth",
-            block: "end"
-          });
+      }), async () => {
+        const container = this.scrollingContainerRef.current;
+        const images = container.querySelectorAll("img");
+        const promises = [];
+        images.forEach((image) => {
+          !image.complete && promises.push(new Promise((resolve) => {
+            image.onload = resolve;
+          }));
+        });
+
+        await Promise.all(promises);
+
+        container.scrollTop = container.scrollHeight;
       });
 
       lastAuthor = author.display_name;

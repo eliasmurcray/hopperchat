@@ -7,8 +7,6 @@ import { getStorage, uploadBytes, ref as _ref } from "firebase/storage";
 import firebaseConfig from "../firebaseconfig.json";
 import AvatarForm from "./avatar-form";
 import LoginApp from "./login-app";
-
-// Dependencies
 import PhoneInput from "react-phone-input-2";
 import { isValidPhoneNumber } from "react-phone-number-input";
 import "react-phone-input-2/lib/style.css";
