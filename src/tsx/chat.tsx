@@ -62,10 +62,8 @@ function getAuthorData(uid: string): Promise<User> {
   });
 }
 
-var ua = window.navigator.userAgent;
-var iOS = !!ua.match(/iPad/i) || !!ua.match(/iPhone/i);
-var webkit = !!ua.match(/WebKit/i);
-var iOSSafari = iOS && webkit && !ua.match(/CriOS/i);
+const ua = window.navigator.userAgent;
+const iOSSafari = !!ua.match(/iPad/i) || !!ua.match(/iPhone/i) && !!ua.match(/WebKit/i) && !ua.match(/CriOS/i);
 
 const fileNames = [
   "bobert",
@@ -94,68 +92,77 @@ const patterns = [
   {
     reg: /`{3}(.+?)`{3}/,
     hasNestedParsing: false,
-    string: '<div class="block-code">$</div>'
+    string: '<div class="block-code">$</div>',
+    name: "block-code"
   },
   {
     reg: /`([^\n]+?)`/,
     hasNestedParsing: false,
-    string: '<span class="inline-code">$</span>'
+    string: '<span class="inline-code">$</span>',
+    name: "inline-code"
   },
   {
     reg: /\*{2}(.+?)\*{2}/,
     hasNestedParsing: true,
-    string: '<b>$</b>'
+    string: '<b>$</b>',
+    name: "bold"
   },
   {
     reg: /\_\_(.+?)\_\_/,
     hasNestedParsing: true,
-    string: '<u>$</u>'
+    string: '<u>$</u>',
+    name: "underline"
   },
   {
     reg: /\*([^\n]+?)\*/,
     hasNestedParsing: true,
-    string: '<i>$</i>'
+    string: '<i>$</i>',
+    name: "italics"
   },
   {
     reg: /_([^\n"]+?)_/,
     hasNestedParsing: true,
-    string: '<i>$</i>'
+    string: '<i>$</i>',
+    name: "italics"
   },
   {
     reg: /~~([^\n]+?)~~/,
     hasNestedParsing: true,
-    string: '<s>$</s>'
+    string: '<s>$</s>',
+    name: "markdown"
   },
   {
     reg: /&lt;((?:@).+?)&gt;/,
     hasNestedParsing: false,
-    string: '<a href="/user/$" target="_blank">$</a>'
+    string: '<a href="/user/$" target="_blank">$</a>',
+    name: "mention"
   },
   {
     reg: /(?:^|[^"])((?:http|https):\/\/[\w-]+\.[\w\S]+)/,
     hasNestedParsing: false,
-    string: '<a href="$" target="_blank">$</a>'
+    string: '<a href="$" target="_blank">$</a>',
+    name: "link"
   }
 ];
 
 const escape = { "&": "&amp;", "<": "&lt;", ">": "&gt;" };
-
 function initParsing () {
   const regexp = new RegExp(patterns.map((i) => i.reg.source).join("|"), "gm");
   return function parse (content: string) {
     return content
       .replace(/[&<>]/g, (t) => escape[t] || "")
-      .replace(/((?:http|https):\/\/[\w-]+\.[\w\S]+\.(?:gif|jpg|jpeg|tiff|png|webp))/, (match) => {
-        const domain = new URL(match).hostname;
-        if(whitelistedDomains.includes(domain)) {
-          return `<img src="${match}" alt="${match}" width="100%" style="max-width:200px;max-height:200px;" />`;
-        } else
-          return match;
-      })
-      .replace(regexp, (m, ...args) => {
+      .replace(regexp, (match, ...args) => {
         const i = args.findIndex(Boolean);
         const j = patterns[i];
-        if(j === undefined) return m;
+        if(j === undefined) return match;
+        if(j.name === "link") {
+          if(/((?:http|https):\/\/[\w-]+\.[\w\S]+\.(?:gif|jpg|jpeg|tiff|png|webp))/.test(match)) {
+            const domain = new URL(match).hostname;
+            if(whitelistedDomains.includes(domain)) {
+              return `<img src="${match}" alt="${match}" width="100%" style="max-width:200px;max-height:200px;" />`;
+            }
+          }
+        }
         if (j.hasNestedParsing) {
           return j.string.replace(/\$/g, parse(args[i]));
         }
