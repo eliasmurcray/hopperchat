@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { endAt, getDatabase, limitToLast, onChildAdded, onChildRemoved, onValue, orderByChild, push, query, ref, set, startAt, update } from "firebase/database";
-import React, { Component, createRef, MouseEvent, TouchEvent } from "react";
+import React, { cloneElement, Component, createRef, MouseEvent, TouchEvent } from "react";
 import ReactDOM from "react-dom/client";
 import firebaseConfig from "../firebaseconfig.json";
 import "../css/chat.css";
@@ -40,6 +40,7 @@ type User = {
   role: string;
   skey_x: string;
   skey_y: string;
+  last_active: string;
 };
 
 const chatKey = window.location.href.split("/chat/")[1];
@@ -90,7 +91,7 @@ const whitelistedDomains = [
 
 const patterns = [
   {
-    reg: /`{3}(.+?)`{3}/,
+    reg: /(?:`{3})([\s\S]*)(?:`{3})/,
     hasNestedParsing: false,
     string: '<div class="block-code">$</div>',
     name: "block-code"
@@ -131,12 +132,6 @@ const patterns = [
     string: '<a href="/user/$" target="_blank">$</a>',
     name: "mention"
   },
-  // {
-  //   reg: /(?:^|[^"])((?:http|https):\/\/[\w-]+\.[\w\S]+)/,
-  //   hasNestedParsing: false,
-  //   string: '<a href="$" target="_blank">$</a>',
-  //   name: "link"
-  // }
 ];
 
 // https://stackoverflow.com/a/72869607/20918291
@@ -149,7 +144,7 @@ async function asyncReplace(str: string, regex: RegExp, asyncFn: (match: string)
 const escape = { "&": "&amp;", "<": "&lt;", ">": "&gt;" };
 const cached_fetches = {};
 function initParsing () {
-  const regexp = new RegExp(patterns.map((i) => i.reg.source).join("|"), "gm");
+  const regexp = new RegExp(patterns.map((i) => i.reg.source).join("|"), "g");
 
   function syncParse(content: string) {
     return content
@@ -235,7 +230,6 @@ class MessageElement extends Component<MessageType> {
 }
 
 type AppState = {
-  userCount: number;
   chatName: string;
   uid: string;
   messages: [];
@@ -255,7 +249,6 @@ class App extends Component {
   scrollingContainerRef = createRef<HTMLDivElement>();
 
   state: AppState = {
-    userCount: null,
     chatName: "",
     uid: undefined,
     messages: []
@@ -269,11 +262,18 @@ class App extends Component {
     onValue(ref(database, "chats_browse/" + chatKey),
     (snapshot) => {
       const chatInfo = snapshot.val() as ChatBrowse;
+      const keys = Object.keys(chatInfo.members);
       component.setState({
-        userCount: Object.keys(chatInfo.members).length,
         chatName: chatInfo.name
       });
       document.title = chatInfo.name + " | Hopperchat";
+      for(let i = 0; i < keys.length; i++) {
+        getAuthorData(keys[i])
+          .then((author) => {
+            console.log(author);
+
+          });
+      }
     });
 
     new Promise((resolve) => {
@@ -396,8 +396,22 @@ class App extends Component {
 
     onChildRemoved(ref(database, "messages/" + chatKey), (snapshot) => {
       this.setState((appState: AppState) => {
-        const newState = appState.messages.filter((message: any) => message.key !== snapshot.key);
-        return { messages: newState };
+        let predictedIndex: number, lastAuthorr: string;
+        const newState = appState.messages.filter((message: any, index) => {
+          const shouldDelete = message.key === snapshot.key;
+          if(shouldDelete) {
+            predictedIndex = index;
+            lastAuthorr = message.props.authorData.display_name;
+          }
+          return !shouldDelete;
+        });
+
+        const headerMessages = newState.map((message: any, index) => {
+          if(index === predictedIndex && message.props.authorData.display_name === lastAuthorr && newState[index - 1] !== undefined && (newState[index - 1] as any).props.authorData.display_name !== lastAuthorr) return cloneElement(message, { useHeader: true });
+          return message;
+        });
+
+        return { messages: headerMessages };
       });
     });
 
@@ -504,12 +518,6 @@ class App extends Component {
 
   render() {
     return <div className="app">
-      <div className="top-bar">
-        <div className="user-count">
-          {this.state.userCount !== null && this.state.userCount + (this.state.userCount === 1 ? " Member" : " Members")}
-        </div>
-        <svg width="40" height="10" fill="#19d263"><path d="M5 0L10 10L 0 10M30 0L40 0L40 10L30 10M 20 5m -5 0a 5 5 0 1 0 10 0a 5 5 0 1 0 -10 0"></path></svg>
-      </div>
       <header className="chat-header">
         <button className="circle-button"
           aria-label="Return To Chats"

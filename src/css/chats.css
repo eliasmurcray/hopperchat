@@ -1,5 +1,11 @@
+:root {
+  --default-background: #0d1116;
+  --mute-background: #161b22;
+  --hover-background: #1e252e;
+  --code-background: #152130;
+}
 body {
-  background: #121315;
+  background: var(--default-background);
   color: #efefff;
   margin: 0;
   font: 300 16px / 1.75 Söhne,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif,Helvetica Neue,Arial,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;

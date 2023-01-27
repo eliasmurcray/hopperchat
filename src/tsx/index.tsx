@@ -9,7 +9,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
 async function signupWithEmail(email: string, password: string): Promise<any> {
-  window["email"] = email;
+  localStorage.setItem("email", email);
   const { user } = await createUserWithEmailAndPassword(auth, email, password);
   window["user"] = user;
   return await sendEmailVerification(user, {
@@ -40,7 +40,7 @@ class EmailPasswordForm extends React.Component<{ onSuccess: () => void }> {
     event.preventDefault();
     const email = this.emailRef.current.value;
     const password = this.passwordRef.current.value;
-    window["email"] = email;
+    localStorage.setItem("email", email);
 
     signupWithEmail(email, password)
     .then(() => {
@@ -128,8 +128,8 @@ const App = () => {
     <div className="step-container">
       <h2>Verify Your Email</h2>
       <div className="small">For your security</div>
-      <div style={{ textAlign: "center", marginBottom: "16px" }}>We sent an email to {window["email"]}.<br/>Click the link inside to get started.</div>
-      <EmailResendButton/>
+      <div style={{ textAlign: "center", marginBottom: "16px" }}>We sent an email to {localStorage.getItem("email")}.<br/>Click the link inside to get started.</div>
+      <EmailResendButton />
     </div>
   ]);
   
