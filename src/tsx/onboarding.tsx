@@ -13,7 +13,7 @@ import "react-phone-input-2/lib/style.css";
 import Filter from "bad-words";
 import "../css/onboarding.css";
 
-localStorage.clearItem("email");
+localStorage.removeItem("email");
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);

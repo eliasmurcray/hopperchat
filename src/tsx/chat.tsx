@@ -233,6 +233,7 @@ type AppState = {
   chatName: string;
   uid: string;
   messages: [];
+  hasCompletedSignup: boolean;
 };
 
 class App extends Component {
@@ -251,6 +252,7 @@ class App extends Component {
   state: AppState = {
     chatName: "",
     uid: undefined,
+    hasCompletedSignup: false,
     messages: []
   }
 
@@ -271,7 +273,6 @@ class App extends Component {
         getAuthorData(keys[i])
           .then((author) => {
             console.log(author);
-
           });
       }
     });

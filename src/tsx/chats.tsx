@@ -50,11 +50,11 @@ localStorage.setItem("firebase:previous_websocket_failure", "false");
 
 const cache_author_data = {};
 function getAuthorInfo(uid: string): Promise<User> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     if(cache_author_data[uid] !== undefined) return resolve(cache_author_data[uid]);
     onValue(ref(database, "public_users/" + uid),
     (snapshot) => {
-      if(!snapshot.exists()) return reject("User does not exist.");
+      if(!snapshot.exists()) return resolve(null);
       cache_author_data[uid] = snapshot.val();
       resolve(snapshot.val());
     }, {
@@ -173,8 +173,8 @@ class App extends Component {
     chats: [],
     allLoaded: false,
     userCount: "",
-    uid: null,
-    myInfo: null
+    uid: undefined,
+    myInfo: undefined
   }
 
   async *getChats(): AsyncGenerator<ChatCollection, boolean, ChatCollection> {
@@ -353,13 +353,13 @@ class App extends Component {
   render() {
     return <div className="app">
       <div className="top-bar">
-        <div className="user-count">
+        {this.state.userCount !== "" && <div className="user-count">
           {this.state.userCount} Users
-        </div>
+        </div>}
         <svg width="40" height="10" fill="#19d263"><path d="M5 0L10 10L 0 10M30 0L40 0L40 10L30 10M 20 5m -5 0a 5 5 0 1 0 10 0a 5 5 0 1 0 -10 0"></path></svg>
       </div>
       <header>
-        {this.state.uid === null && <button className="circle-button" onClick={(event: TouchEvent | MouseEvent) => {
+        {this.state.uid === null && <button className="circle-button" style={{ animation: "fade-in .3s ease-in" }} onClick={(event: TouchEvent | MouseEvent) => {
           const element = event.target as HTMLButtonElement;
           element.onanimationend = () => {
             window.open("/login", "_self");
@@ -370,17 +370,17 @@ class App extends Component {
           Log In
           <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px"><g><rect fill="none" height="24" width="24"/></g><g><path d="M11,7L9.6,8.4l2.6,2.6H2v2h10.2l-2.6,2.6L11,17l5-5L11,7z M20,19h-8v2h8c1.1,0,2-0.9,2-2V5c0-1.1-0.9-2-2-2h-8v2h8V19z"/></g></svg>
         </button>}
-        {this.state.uid !== null && <button className="circle-button" onClick={this.openCreateChatModal}>
+        {this.state.myInfo !== undefined && this.state.myInfo !== null && <button className="circle-button" style={{ animation: "fade-in .3s ease-in" }} onClick={this.openCreateChatModal}>
           Create Chat 
           <svg xmlns="http://www.w3.org/2000/svg" height="24" width="24" viewBox="0 0 48 48"><path d="m2 46 3.6-12.75q-1-2.15-1.45-4.425-.45-2.275-.45-4.675 0-4.2 1.575-7.85Q6.85 12.65 9.6 9.9q2.75-2.75 6.4-4.325Q19.65 4 23.85 4q4.2 0 7.85 1.575Q35.35 7.15 38.1 9.9q2.75 2.75 4.325 6.4Q44 19.95 44 24.15q0 4.2-1.575 7.85-1.575 3.65-4.325 6.4-2.75 2.75-6.4 4.325-3.65 1.575-7.85 1.575-2.4 0-4.675-.45T14.75 42.4Zm4.55-4.55 6.9-1.9q.8-.25 1.5-.175.7.075 1.45.375 1.8.7 3.675 1.125 1.875.425 3.775.425 7.15 0 12.15-5t5-12.15Q41 17 36 12T23.85 7Q16.7 7 11.7 12t-5 12.15q0 1.95.275 3.85.275 1.9 1.275 3.6.35.7.375 1.45.025.75-.175 1.5Zm15.8-9.25h3v-6.35h6.4v-3h-6.4v-6.4h-3v6.4h-6.4v3h6.4Zm1.45-8Z"/></svg>
         </button>}
-        {this.state.uid !== null && 
-        <button className="circle-button" onClick={this.toggleProfileModal}>
+        {this.state.myInfo !== undefined && this.state.myInfo !== null && 
+        <button className="circle-button" style={{ animation: "fade-in .3s ease-in" }} onClick={this.toggleProfileModal}>
           Profile
           <img src={"https://storage.googleapis.com/hopperchat-cloud.appspot.com/profile_pictures/" + this.state.uid} />
         </button>}
-        { this.state.uid !== null &&
-        <div className="profile-modal" ref={this.profileModalRef}>
+        {this.state.myInfo !== undefined && this.state.myInfo !== null &&
+        <div className="profile-modal" ref={this.profileModalRef} style={{ animation: "fade-in .3s ease-in" }}>
           <div style={{
             lineHeight: "1.25" }}>
             <img src={"https://storage.googleapis.com/hopperchat-cloud.appspot.com/profile_pictures/" + this.state.uid} />
@@ -421,7 +421,18 @@ class App extends Component {
           {this.state.chats}
         </div>
       </div>
-      {this.state.uid !== null && <div className="modal" ref={this.createChatModalRef}>
+      {this.state.myInfo === null && <div className="modal" style={{ display: "flex" }}>
+        <h3>Complete Your Profile</h3>
+        <div className="small">You are almost there!</div>
+        <CloseModalButton />
+        <div style={{ maxWidth: "320px" }}>
+          Our systems have detected that you have not completed your profile. Be sure to complete your profile to enjoy the full features of our site!
+          <br />
+          <br />
+          <a href="/onboarding">https://www.hopperchat.com/onboarding</a>
+        </div>
+      </div>}
+      <div className="modal" ref={this.createChatModalRef}>
         <h3>Create Your Chat</h3>
         <div className="small">The world is your oyster</div>
         <CloseModalButton />
@@ -445,7 +456,7 @@ class App extends Component {
           </div>
           <button type="submit">Create Chat</button>
         </form>
-      </div>}
+      </div>
     </div>
   }
 }

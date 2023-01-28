@@ -3,7 +3,7 @@
   --mute-background: #161b22;
   --hover-background: #1e252e;
   --default-text: #e0e4ea;
-  --code-text: #c9d1d9;
+  --mute-text: #c9d1d9;
 }
 html {
   overflow: hidden;
@@ -28,13 +28,13 @@ a:hover {
 .inline-code {
   font: 400 12px / 1.75 ui-monospace,"Cascadia Mono","Segoe UI Mono","Liberation Mono",Menlo,Monaco,Consolas,monospace;
   padding: 2px;
-  color: var(--code-text);
+  color: var(--mute-text);
   background: var(--default-background); 
 }
 .block-code {
   padding: 10px;
   font: 400 12px / 1.75 ui-monospace,"Cascadia Mono","Segoe UI Mono","Liberation Mono",Menlo,Monaco,Consolas,monospace;
-  color: var(--code-text);
+  color: var(--mute-text);
   background: var(--default-background);
   margin: 0 10px 10px 0;
 }

@@ -2,11 +2,12 @@
   --default-background: #0d1116;
   --mute-background: #161b22;
   --hover-background: #1e252e;
-  --code-background: #152130;
+  --default-text: #e0e4ea;
+  --mute-text: #c9d1d9;
 }
 body {
   background: var(--default-background);
-  color: #efefff;
+  color: var(--default-text);
   margin: 0;
   font: 300 16px / 1.75 Söhne,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif,Helvetica Neue,Arial,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;
   height: 100vh;
@@ -29,7 +30,7 @@ h1, h2 {
 }
 div.small {
   margin-bottom: 16px;
-  color: #a5a4b6;
+  color: var(--mute-text);
   font-weight: 400;
 }
 div.small:last-child {
@@ -59,7 +60,7 @@ a:hover {
   border-radius: 4px;
 }
 .button-link:hover {
-  background-color: #3299e722;
+  background-color: var(--hover-background);
 }
 form {
   display: flex;
@@ -78,7 +79,7 @@ form {
   height: 48px;
   margin-top: 16px;
   border-radius: 4px;
-  background: #222325;
+  background: var(--mute-background);
   box-sizing: border-box;
   box-shadow: 0px 2px 8px #00000011;
 }
@@ -92,7 +93,7 @@ form {
   height: 100%;
   border: none;
   background: #00000000;
-  color: #ecebf2;
+  color: var(--default-text);
   font: inherit;
   display: block;
   box-sizing: border-box;
@@ -110,7 +111,7 @@ form {
   display: flex;
   align-items: center;
   transition: all .15s ease-in-out;
-  background: #222325;
+  background: var(--mute-background);
   line-height: 0;
   -webkit-user-select: none;
   user-select: none;
@@ -200,7 +201,7 @@ button[type=submit]:hover {
   bottom: 0;
   right: 0;
   transform: translateY(100%);
-  background: #222325AB;
+  background: #161b22AB;
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
 }
@@ -215,8 +216,8 @@ button[type=submit]:hover {
   top: 15px;
   right: 15px;
   background: #0000;
-  color: #efefff;
-  border: 1px solid #efefff;
+  color: var(--default-text);
+  border: 1px solid var(--default-text);
   border-radius: 50%;
   width: 32px;
   height: 32px;
@@ -233,11 +234,6 @@ button[type=submit]:hover {
 .close-modal-button:hover {
   opacity: 1;
 }
-div.small {
-  margin-bottom: 16px;
-  color: #a5a4b6;
-  font-weight: 400;
-}
 .top-bar {
   display: flex;
   align-items: center;
@@ -250,6 +246,7 @@ div.small {
   line-height: 22px;
   margin-right: 4px;
   font-weight: 400;
+  animation: fade-in .3s ease-in;
 }
 @keyframes fade-out {
   0% {
@@ -274,8 +271,9 @@ header {
   justify-content: flex-end;
   padding: 0 15px;
   height: 42px;
-  background: #202123;
-  box-shadow: 0 4px 8px #111215AB;
+  background: var(--default-background);
+  border-bottom: 1px solid var(--mute-background);
+  box-sizing: border-box;
   z-index: 1;
 }
 .circle-button {
@@ -299,7 +297,7 @@ header {
   transition: background-color .3s ease-in-out;
 }
 .circle-button:hover {
-  background-color: #2a2b32;
+  background-color: var(--hover-background);
 }
 .circle-button img {
   width: 24px;
@@ -327,7 +325,7 @@ header {
   box-sizing: border-box;
   justify-content: space-between;
   padding: 15px;
-  background-color: #121315;
+  background-color: var(--default-background);
   transition: background-color .1s ease-in-out;
   color: #efefff;
   border: none;
@@ -345,7 +343,7 @@ header {
   }
 }
 .chat-card:hover {
-  background-color: #202123;
+  background-color: var(--mute-background);
 }
 .chat-card h3,
 .chat-card h4 {
@@ -372,7 +370,7 @@ header {
   cursor: pointer;
 }
 .chat-card h3:hover {
-  background-color: #313235;
+  background-color: var(--hover-background);
 }
 .chat-card h3::after {
   position: absolute;
