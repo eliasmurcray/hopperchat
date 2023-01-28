@@ -1,0 +1,48 @@
+{
+  "hosting": {
+    "public": "dist",
+    "cleanUrls": true,
+    "trailingSlash": false,
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "manifest.json"
+    ],
+    "appAssociation": "AUTO",
+    "rewrites": [
+      {
+        "source": "/chat/**",
+        "destination": "/chat.html"
+      },
+      {
+        "source": "**/user/**",
+        "destination": "user.html"
+      }
+    ],
+    "headers": [
+      {
+        "source" : "**",
+        "headers" : [
+          {
+            "key" : "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          },
+          {
+            "key": "Content-Security-Policy",
+            "value": "script-src 'self' https://apis.google.com/ https://www.google.com/ https://www.gstatic.com/ https://www.googletagmanager.com/ https://hopperchat-cloud-default-rtdb.firebaseio.com/ https://s-usc1a-nss-2034.firebaseio.com/ 'sha256-hEeq+KgR48i0yQzaotdv+Eeg35B2mggIslhodFmk0b4='; object-src 'none'; img-src 'self' https://upload.wikimedia.org/ https://storage.googleapis.com/hopperchat-cloud.appspot.com/ data: blob:"
+          }
+        ]
+      },
+      {
+        "source" : "**/*.@(js|css|png|webp|webmanifest)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=31536000"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -8,7 +8,6 @@ firebase-debug.*.log*
 .firebase/
 dist/
 .firebaserc
-firebase.json
 pids
 *.pid
 *.seed
