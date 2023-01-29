@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { initializeApp } from "firebase/app";
-import { getAuth, onAuthStateChanged, RecaptchaVerifier, multiFactor, PhoneAuthProvider, PhoneMultiFactorGenerator } from "firebase/auth";
+import { onAuthStateChanged, RecaptchaVerifier, multiFactor, PhoneAuthProvider, PhoneMultiFactorGenerator, initializeAuth, indexedDBLocalPersistence, browserLocalPersistence } from "firebase/auth";
 import { getDatabase, ref, onValue, query, orderByChild, equalTo, set, update } from "firebase/database";
 import { getStorage, uploadBytes, ref as _ref } from "firebase/storage";
 import firebaseConfig from "../firebaseconfig.json";
@@ -16,7 +16,9 @@ import "../css/onboarding.css";
 localStorage.removeItem("email");
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+const auth = initializeAuth(app, {
+  persistence: [indexedDBLocalPersistence, browserLocalPersistence]
+});
 const database = getDatabase(app);
 const storage = getStorage(app);
 const filter = new Filter();

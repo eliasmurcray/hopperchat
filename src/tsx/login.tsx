@@ -3,13 +3,15 @@ import ReactDOM from "react-dom/client";
 import LoginApp from "./login-app";
 
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { browserLocalPersistence, indexedDBLocalPersistence, initializeAuth } from "firebase/auth";
 
 import firebaseConfig from "../firebaseconfig.json";
 import "../css/onboarding.css";
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+const auth = initializeAuth(app, {
+  persistence: [indexedDBLocalPersistence, browserLocalPersistence]
+});
 
 class App extends React.Component {
 

@@ -68,8 +68,8 @@ a:hover {
 .messages-group {
   display: flex;
   flex-flow: column;
-  height: 100%;
   overflow: hidden;
+  flex: 1;
 }
 .side-panel {
   display: flex;

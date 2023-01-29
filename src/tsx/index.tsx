@@ -2,11 +2,13 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import firebaseConfig from "../firebaseconfig.json";
 import { initializeApp } from "firebase/app";
-import { getAuth, createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
+import { createUserWithEmailAndPassword, sendEmailVerification, initializeAuth, indexedDBLocalPersistence, browserLocalPersistence } from "firebase/auth";
 import "../css/index.css";
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+const auth = initializeAuth(app, {
+  persistence: [indexedDBLocalPersistence, browserLocalPersistence]
+});
 
 async function signupWithEmail(email: string, password: string): Promise<any> {
   localStorage.setItem("email", email);

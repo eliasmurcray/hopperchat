@@ -1,7 +1,7 @@
 import React, { Component, createRef, FormEvent, MouseEvent, TouchEvent } from "react";
 import ReactDOM from "react-dom/client";
 import { initializeApp } from "firebase/app";
-import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
+import { browserLocalPersistence, indexedDBLocalPersistence, initializeAuth, onAuthStateChanged, signOut } from "firebase/auth";
 import { getDatabase, ref, onValue, query, startAt, limitToFirst, push, set } from "firebase/database";
 import firebaseConfig from "../firebaseconfig.json";
 import "../css/chats.css";
@@ -43,7 +43,9 @@ type ChatCollection = {
 };
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+const auth = initializeAuth(app, {
+  persistence: [indexedDBLocalPersistence, browserLocalPersistence]
+});
 const database = getDatabase(app);
 
 localStorage.setItem("firebase:previous_websocket_failure", "false");

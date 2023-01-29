@@ -3,11 +3,13 @@ import ReactDOM from "react-dom/client";
 import LoginApp from "./login-app";
 import firebaseConfig from "../firebaseconfig.json";
 import { initializeApp } from "firebase/app";
-import { getAuth, onAuthStateChanged, sendEmailVerification } from "firebase/auth";
+import { browserLocalPersistence, indexedDBLocalPersistence, initializeAuth, onAuthStateChanged, sendEmailVerification } from "firebase/auth";
 import "../css/index.css";
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+const auth = initializeAuth(app, {
+  persistence: [indexedDBLocalPersistence, browserLocalPersistence]
+});
 
 onAuthStateChanged(auth, (user) => {
   window["user"] = user;

@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { browserLocalPersistence, indexedDBLocalPersistence, initializeAuth, onAuthStateChanged } from "firebase/auth";
 import { endAt, getDatabase, limitToLast, onChildAdded, onChildRemoved, onValue, orderByChild, push, query, ref, set, startAt, update } from "firebase/database";
 import React, { cloneElement, Component, createRef, MouseEvent, TouchEvent } from "react";
 import ReactDOM from "react-dom/client";
@@ -10,7 +10,9 @@ import "../css/chat.css";
 localStorage.setItem("firebase:previous_websocket_failure", "false");
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+const auth = initializeAuth(app, {
+  persistence: [indexedDBLocalPersistence, browserLocalPersistence]
+});
 const database = getDatabase(app);
 
 type ChatBrowse = {
@@ -317,6 +319,9 @@ class App extends Component {
     const component = this;
 
     const updateAuthorActivity = () => {
+      this.setState({
+        members: []
+      });
       onValue(ref(database, "chats_browse/" + chatKey),
       (snapshot) => {
         const chatInfo = snapshot.val() as ChatBrowse;
