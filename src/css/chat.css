@@ -55,9 +55,61 @@ a:hover {
 .app {
   display: flex;
   flex-flow: column;
-  width: min(100%, 800px);
-  margin-inline: auto;
+  width: 100%;
   height: 100%;
+  margin-inline: auto;
+}
+.content-flex {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  height: calc(100% - 32px);
+}
+.messages-group {
+  display: flex;
+  flex-flow: column;
+  height: 100%;
+  overflow: hidden;
+}
+.side-panel {
+  display: flex;
+  flex-flow: column;
+  overflow: hidden auto;
+  max-width: 320px;
+}
+.author-card {
+  width: 320px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  column-gap: 12px;
+}
+.author-card .flex-column {
+  display: flex;
+  flex-flow: column;
+  align-items: flex-start;
+}
+.author-card .flex-column h3 {
+  font-size: 16px;
+  margin: 0;
+  font-weight: 600;
+}
+.author-card img {
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: block;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.author-card .flex-column .last-active {
+  font-size: 12px;
+}
+
+@media (max-width: 800px) {
+  .side-panel {
+    display: none;
+  }
 }
 h1 {
   font-weight: 600;
@@ -107,12 +159,6 @@ h1 {
   line-height: 22px;
   margin-right: 4px;
   font-weight: 400;
-}
-.messages-group {
-  display: flex;
-  flex-flow: column;
-  flex: 1;
-  overflow: hidden;
 }
 .loading-spinner {
   width: 100%;
@@ -290,8 +336,8 @@ h1 {
   font-size: 14px;
 }
 .message-avatar {
-  width: 35px;
-  height: 35px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   -webkit-user-select: none;
   user-select: none;

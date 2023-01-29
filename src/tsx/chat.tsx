@@ -229,11 +229,65 @@ class MessageElement extends Component<MessageType> {
   }
 }
 
+type AuthorCardType = {
+  display_name: string;
+  uid: string;
+  last_active: number;
+};
+
+function timeSince(timestamp: number): string {
+  if(!timestamp) return "a long time ago";
+  let currentTime = Date.now();
+  let elapsedTime = currentTime - timestamp;
+
+  let seconds = Math.floor(elapsedTime / 1000);
+  let minutes = Math.floor(seconds / 60);
+  let hours = Math.floor(minutes / 60);
+  let days = Math.floor(hours / 24);
+  let months = Math.floor(days / 30);
+  let years = Math.floor(months / 12);
+
+  let timeAgo = "";
+  if (years > 0) {
+    timeAgo = `${years} year${years > 1 ? "s" : ""} ago`;
+  } else if (months > 0) {
+    timeAgo = `${months} month${months > 1 ? "s" : ""} ago`;
+  } else if (days > 0) {
+    timeAgo = `${days} day${days > 1 ? "s" : ""} ago`;
+  } else if (hours > 0) {
+    timeAgo = `${hours} hour${hours > 1 ? "s" : ""} ago`;
+  } else if (minutes > 0) {
+    timeAgo = `${minutes} minute${minutes > 1 ? "s" : ""} ago`;
+  } else if (seconds > 0) {
+    timeAgo = `${seconds} second${seconds > 1 ? "s" : ""} ago`;
+  } else {
+    timeAgo = "just now";
+  }
+  return `${timeAgo}`;
+}
+
+class AuthorCard extends Component<AuthorCardType> {
+  constructor(props: AuthorCardType | Readonly<AuthorCardType>) {
+    super(props);
+  }
+
+  render() {
+    return <div className="author-card">
+      <img src={"https://storage.googleapis.com/hopperchat-cloud.appspot.com/profile_pictures/" + this.props.uid} />
+      <div className="flex-column">
+        <h3>{this.props.display_name}</h3>
+        <div className="last-active">Last active {timeSince(this.props.last_active)}</div>
+      </div>
+    </div>
+  }
+}
+
 type AppState = {
   chatName: string;
   uid: string;
   messages: [];
   hasCompletedSignup: boolean;
+  members: []
 };
 
 class App extends Component {
@@ -253,7 +307,8 @@ class App extends Component {
     chatName: "",
     uid: undefined,
     hasCompletedSignup: false,
-    messages: []
+    messages: [],
+    members: []
   }
 
   messageTextareaRef = createRef<HTMLTextAreaElement>();
@@ -261,21 +316,37 @@ class App extends Component {
   async componentDidMount() {
     const component = this;
 
-    onValue(ref(database, "chats_browse/" + chatKey),
-    (snapshot) => {
-      const chatInfo = snapshot.val() as ChatBrowse;
-      const keys = Object.keys(chatInfo.members);
-      component.setState({
-        chatName: chatInfo.name
+    const updateAuthorActivity = () => {
+      onValue(ref(database, "chats_browse/" + chatKey),
+      (snapshot) => {
+        const chatInfo = snapshot.val() as ChatBrowse;
+        const keys = Object.keys(chatInfo.members);
+        component.setState({
+          chatName: chatInfo.name
+        });
+        document.title = chatInfo.name + " | Hopperchat";
+        for(let i = 0; i < keys.length; i++) {
+          getAuthorData(keys[i])
+            .then((author) => {
+              this.setState((appState: AppState) => ({
+                members: [
+                  ...appState.members,
+                  <AuthorCard
+                    display_name={author.display_name}
+                    uid={keys[i]}
+                    last_active={+author.last_active ?? 164099520000}
+                    />
+                ]
+              }))
+            });
+        }
+      }, {
+        onlyOnce: true
       });
-      document.title = chatInfo.name + " | Hopperchat";
-      for(let i = 0; i < keys.length; i++) {
-        getAuthorData(keys[i])
-          .then((author) => {
-            console.log(author);
-          });
-      }
-    });
+    };
+
+    updateAuthorActivity();
+    window.setInterval(updateAuthorActivity, 1000 * 60 * 5);
 
     new Promise((resolve) => {
       onAuthStateChanged(auth, (user) => {
@@ -530,40 +601,45 @@ class App extends Component {
         </button>
         {this.state.chatName && <h1>{this.state.chatName}</h1>}
       </header>
-      <div className="messages-group">
-        <div className="messages-overflow-container" ref={this.scrollingContainerRef}>
-          <div ref={this.loadingContainerRef}>
-            <div className="loading-spinner"><div className="loading-icon"></div></div>
+      <div className="content-flex">
+        <div className="messages-group">
+          <div className="messages-overflow-container" ref={this.scrollingContainerRef}>
+            <div ref={this.loadingContainerRef}>
+              <div className="loading-spinner"><div className="loading-icon"></div></div>
+            </div>
+            <ul className="messages-container">
+              {this.state.messages}
+            </ul>
           </div>
-          <ul className="messages-container">
-            {this.state.messages}
-          </ul>
+          <form noValidate className="message-form"
+          onSubmit={this.handleSubmit}>
+            <div className="input-container">
+              <textarea ref={this.messageTextareaRef}
+                disabled={this.state.uid === undefined}
+                spellCheck="false"
+                placeholder=" "
+                onKeyUp={this.trackKeys}
+                onInput={(event) => {
+                  const textarea = event.target as HTMLTextAreaElement;
+                  const parent = textarea.parentElement;
+                  textarea.style.height = "";
+                  parent.style.height = "";
+                  parent.style.height = `${textarea.scrollHeight}px`;
+                }}
+                onKeyDown={this.trackKeys}
+                title=""
+                id="message-input"
+                required></textarea>
+              <label htmlFor="message-input">Enter message</label>
+            </div>
+            <button className="send-button" type="submit">
+              <img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24' width='24' viewBox='0 0 45 45'%3E%3Cpath fill='%23efefef' d='M6 40V8l38 16Zm3-4.65L36.2 24 9 12.5v8.4L21.1 24 9 27Zm0 0V12.5 27Z'/%3E%3C/svg%3E" title="Send message" alt="Send message" />
+            </button>
+          </form>
         </div>
-        <form noValidate className="message-form"
-        onSubmit={this.handleSubmit}>
-          <div className="input-container">
-            <textarea ref={this.messageTextareaRef}
-              disabled={this.state.uid === undefined}
-              spellCheck="false"
-              placeholder=" "
-              onKeyUp={this.trackKeys}
-              onInput={(event) => {
-                const textarea = event.target as HTMLTextAreaElement;
-                const parent = textarea.parentElement;
-                textarea.style.height = "";
-                parent.style.height = "";
-                parent.style.height = `${textarea.scrollHeight}px`;
-              }}
-              onKeyDown={this.trackKeys}
-              title=""
-              id="message-input"
-              required></textarea>
-            <label htmlFor="message-input">Enter message</label>
-          </div>
-          <button className="send-button" type="submit">
-            <img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24' width='24' viewBox='0 0 45 45'%3E%3Cpath fill='%23efefef' d='M6 40V8l38 16Zm3-4.65L36.2 24 9 12.5v8.4L21.1 24 9 27Zm0 0V12.5 27Z'/%3E%3C/svg%3E" title="Send message" alt="Send message" />
-          </button>
-        </form>
+        <div className="side-panel">
+          {this.state.members}
+        </div>
       </div>
     </div>;
   }
