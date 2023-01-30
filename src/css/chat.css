@@ -63,7 +63,7 @@ a:hover {
   display: flex;
   flex: 1;
   width: 100%;
-  height: calc(100% - 32px);
+  height: calc(100% - 47px);
 }
 .messages-group {
   display: flex;

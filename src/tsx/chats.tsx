@@ -17,8 +17,6 @@ function ripple(a: TouchEvent & MouseEvent) {
     f && f.remove(), b.innerHTML += `<span class="ripple" style="width:${c}px;height:${c}px;top:${g.clientY-e.top-d}px;left:${g.clientX-e.left-d}px"></span>`
 }
 
-// storage url: https://storage.googleapis.com/hopperchat-cloud.appspot.com
-
 type User =  {
   display_name: string;
   role: string;
@@ -155,6 +153,14 @@ class CloseModalButton extends Component {
   }
 }
 
+type AppState = {
+  chats: [];
+  allLoaded: boolean;
+  userCount: string;
+  uid: string;
+  myInfo: User
+};
+
 class App extends Component {
 
   constructor(props: {} | Readonly<{}>) {
@@ -227,9 +233,11 @@ class App extends Component {
 
     // Initial load chats
     if(this.state.chats.length === 0) {
+      console.time("Load Chats");
       this.getChats()
       .next()
       .then(async ({ value, done }) => {
+        console.timeEnd("Load Chats")
         if(done === true) {
           this.state.allLoaded = true;
           console.log("All chats have been loaded.");
@@ -250,12 +258,12 @@ class App extends Component {
             numUsers={Object.keys(chatInfo.members).length}
             uid={this.state.uid} />);
         }
-        component.setState({
+        component.setState((appState: AppState) => ({
           chats: [
-          ...component.state.chats,
+          ...appState.chats,
           ... loadedChats
           ]
-        });
+        }));
       });
     }
     if (this.chatsContainerRef.current && !this.state.allLoaded) {
@@ -420,7 +428,7 @@ class App extends Component {
       </header>
       <div className="chats-overflow-container">
         <div className="chats-container" ref={this.chatsContainerRef}>
-          {this.state.chats}
+          {this.state.chats.length === 0 ? (<div><div className="loading-chat"></div><div className="loading-chat"></div><div className="loading-chat"></div><div className="loading-chat"></div><div className="loading-chat"></div><div className="loading-chat"></div><div className="loading-chat"></div><div className="loading-chat"></div><div className="loading-chat"></div><div className="loading-chat"></div></div>) : this.state.chats}
         </div>
       </div>
       {this.state.myInfo === null && <div className="modal" style={{ display: "flex" }}>

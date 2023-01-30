@@ -289,7 +289,8 @@ type AppState = {
   uid: string;
   messages: [];
   hasCompletedSignup: boolean;
-  members: []
+  members: [];
+  toNotify: [];
 };
 
 class App extends Component {
@@ -310,7 +311,8 @@ class App extends Component {
     uid: undefined,
     hasCompletedSignup: false,
     messages: [],
-    members: []
+    members: [],
+    toNotify: []
   }
 
   messageTextareaRef = createRef<HTMLTextAreaElement>();
@@ -327,10 +329,19 @@ class App extends Component {
         const chatInfo = snapshot.val() as ChatBrowse;
         const keys = Object.keys(chatInfo.members);
         component.setState({
-          chatName: chatInfo.name
+          chatName: chatInfo.name,
+          memberInfo: chatInfo.members
         });
         document.title = chatInfo.name + " | Hopperchat";
         for(let i = 0; i < keys.length; i++) {
+          if(chatInfo[keys[i]].should_notify === true) {
+            component.setState((appState: AppState) => ({
+              toNotify: [
+                ...appState.toNotify,
+                keys[i]
+              ]
+            }));
+          }
           getAuthorData(keys[i])
             .then((author) => {
               this.setState((appState: AppState) => ({
@@ -572,6 +583,20 @@ class App extends Component {
       should_notify: true,
       role: (await getAuthorData(this.state.uid)).role
     }))
+    .then(() => {
+      const toNotify = this.state.toNotify;
+      const keys = Object.keys(toNotify);
+      const promises = [];
+      for(let i = 0; i < keys.length; i++)
+        promises.push(
+          set(ref(database, `private_users/${keys[i]}/${this.state.uid}/${key}`), {
+            chat_key: chatKey,
+            chat_name: this.state.chatName,
+            content: message.substring(0, 150)
+          })
+        )
+      return Promise.all(promises);
+    })
     .catch((error) => {
       console.error(error);
       console.log(message);

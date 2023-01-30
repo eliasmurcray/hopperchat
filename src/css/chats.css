@@ -317,6 +317,32 @@ header {
   align-items: flex-start;
   width: 100%;
 }
+.loading-chat {
+  position: relative;
+  flex-basis: none;
+  width: 100vw;
+  height: 88.5px;
+  background-color: var(--default-background);
+}
+.loading-chat::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translateX(-100%);
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #0000, var(--hover-background), #0000);
+  animation: loading-shine 1000ms infinite ease-in-out;
+}
+@keyframes loading-shine {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
 .chat-card {
   display: flex;
   align-items: center;
