@@ -264,7 +264,7 @@ button[type=submit]:hover {
     opacity: 1;
   }
 }
-header {
+.main-header {
   position: relative;
   display: flex;
   align-items: center;
@@ -359,6 +359,7 @@ header {
   position: relative;
   overflow: hidden;
   animation: fade-in .3s ease-in;
+  text-decoration: none;
 }
 @keyframes fade-in {
   0% {
@@ -424,4 +425,91 @@ header {
     transform: scale(6);
     opacity: 0;
   }
+}
+
+@media (max-width:720px) {
+  .long-description {
+    display: none;
+  }
+}
+
+.notifications-container {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  transform: translateY(100%);
+  width: min(500px, 100vw);
+  height: 444px;
+  box-sizing: border-box;
+  list-style: none;
+  padding: none;
+  margin: 0;
+  padding: 0;
+  background: var(--mute-background);
+  box-shadow: 0 0 10px var(--default-background);
+  display: flex;
+  flex-flow: column;
+  align-items: flex-start;
+  overflow: hidden auto;
+}
+.notification-element {
+  display: flex;
+  flex-flow: column;
+  align-items: flex-start;
+  font-size: 12px;
+  margin: 0;
+  padding: 16px 20px 12px 20px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.notification-header {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 18px;
+  box-sizing: border-box;
+  margin-bottom: 7px;
+}
+.notification-author__avatar {
+  width: 18px;
+  height: 18px;
+  display: block;
+  margin-right: 8px;
+  border-radius: 50%;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.notification-author__display-name {
+  font-weight: 400;
+  color: var(--mute-text);
+  margin: 0 8px 0 0;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.notification-header a {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.notification-date {
+  color: var(--mute-text);
+  line-height: 18px;
+  margin-left: auto;
+  padding-left: 8px;
+  white-space: nowrap;
+}
+.notification-content {
+  margin: 0;
+  line-height: 18px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.emoji-container {
+  height: 18px;
+  display: inline-block;
+  vertical-align: top;
+}
+.emoji-container img {
+  display: block;
+  pointer-events: none;
 }

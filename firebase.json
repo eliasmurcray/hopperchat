@@ -30,7 +30,7 @@
           },
           {
             "key": "Content-Security-Policy",
-            "value": "script-src 'self' https://apis.google.com/ https://www.google.com/ https://www.gstatic.com/ https://www.googletagmanager.com/ https://hopperchat-cloud-default-rtdb.firebaseio.com/ https://s-usc1a-nss-2034.firebaseio.com/ 'sha256-hEeq+KgR48i0yQzaotdv+Eeg35B2mggIslhodFmk0b4='; object-src 'none'; img-src 'self' https://upload.wikimedia.org/ https://storage.googleapis.com/hopperchat-cloud.appspot.com/ data: blob:"
+            "value": "script-src 'self' https://apis.google.com/ https://www.google.com/ https://www.gstatic.com/ https://www.googletagmanager.com/ https://hopperchat-cloud-default-rtdb.firebaseio.com/ https://s-usc1a-nss-2034.firebaseio.com/ https://s-usc1a-nss-2033.firebaseio.com/ 'sha256-hEeq+KgR48i0yQzaotdv+Eeg35B2mggIslhodFmk0b4='; object-src 'none'; img-src 'self' https://upload.wikimedia.org/ https://storage.googleapis.com/hopperchat-cloud.appspot.com/ data: blob:"
           }
         ]
       },

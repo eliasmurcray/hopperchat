@@ -23,7 +23,7 @@ type ChatBrowse = {
   members: {
     [uid: string]: {
       role: string;
-      should_notify: string;
+      should_notify: boolean;
     }
   }
 };
@@ -221,12 +221,12 @@ class MessageElement extends Component<MessageType> {
         <p className="message-content" dangerouslySetInnerHTML={{ __html: this.props.content
           + (this.props.messageData.is_edited ? <span>{"(edited)"}</span> : "") }} />
       </div>
-      <div className="message-tools">
-        {this.props.uid === this.props.messageData.author && <button className="delete-message" onClick={() => {
+      {this.props.uid === this.props.messageData.author && <div className="message-tools">
+        <button className="delete-message" onClick={() => {
           if(confirm("Delete message?"))
             set(ref(database, `messages/${chatKey}/${this.props.messageKey}`), null);
-        }}></button>}
-      </div>
+        }}></button>
+      </div>}
     </li>
   }
 }
@@ -291,6 +291,7 @@ type AppState = {
   hasCompletedSignup: boolean;
   members: [];
   toNotify: [];
+  notifications: [];
 };
 
 class App extends Component {
@@ -312,7 +313,8 @@ class App extends Component {
     hasCompletedSignup: false,
     messages: [],
     members: [],
-    toNotify: []
+    toNotify: [],
+    notifications: []
   }
 
   messageTextareaRef = createRef<HTMLTextAreaElement>();
@@ -334,7 +336,7 @@ class App extends Component {
         });
         document.title = chatInfo.name + " | Hopperchat";
         for(let i = 0; i < keys.length; i++) {
-          if(chatInfo[keys[i]].should_notify === true) {
+          if(chatInfo.members[keys[i]].should_notify === true) {
             component.setState((appState: AppState) => ({
               toNotify: [
                 ...appState.toNotify,
@@ -393,6 +395,10 @@ class App extends Component {
         for await (const key of keys) {
           const message = messages[key];
           const author = await getAuthorData(message.author);
+          if(author === null) {
+            console.log("Author of ID " + message.author + " does not exist!");
+            continue;
+          }
           const useHeader = (message.created - lastMillis) > 1000 * 60 * 15 || author.display_name !== lastAuthor;
           loadedMessages.push(<MessageElement
             key={key}
@@ -584,17 +590,17 @@ class App extends Component {
       role: (await getAuthorData(this.state.uid)).role
     }))
     .then(() => {
-      const toNotify = this.state.toNotify;
-      const keys = Object.keys(toNotify);
       const promises = [];
-      for(let i = 0; i < keys.length; i++)
-        promises.push(
-          set(ref(database, `private_users/${keys[i]}/${this.state.uid}/${key}`), {
-            chat_key: chatKey,
-            chat_name: this.state.chatName,
-            content: message.substring(0, 150)
-          })
-        )
+      this.state.toNotify.forEach((uid) =>
+        this.state.uid !== uid && promises.push(set(ref(database, `private_users/${uid}/notifications/${chatKey + key}`), {
+              author: this.state.uid,
+              chat_key: chatKey,
+              message_key: key,
+              chat_name: this.state.chatName,
+              content: message.substring(0, 150),
+              created: Date.now()
+            })
+        ))
       return Promise.all(promises);
     })
     .catch((error) => {
